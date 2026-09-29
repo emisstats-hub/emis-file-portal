@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School File Submission Portal · Asante Akyem North</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#13213f; --navy2:#1c2f57; --gold:#d4a52b; --gold2:#f3e2b3;
+  --bg:#f6f4ee; --card:#fff; --line:#e6e1d6; --text:#1c2433; --muted:#5f6b7d;
+  --green:#1f7a52; --green-bg:#e3f4ec; --red:#b8322a; --red-bg:#fbe7e5;
+  --amber:#9a6412; --amber-bg:#fdf0d8; --blue:#23579a; --blue-bg:#e5eefa; --grey:#5f6b7d; --grey-bg:#eef0f3;
+  --radius:12px; --shadow:0 1px 2px rgba(19,33,63,.06),0 4px 16px rgba(19,33,63,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue)}
+.hidden{display:none!important}
+
+/* ---------- buttons, inputs ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#cfc7b6}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--navy2)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#1b1405}
+.btn.danger{color:var(--red)}
+.btn.ok{color:var(--green)}
+.btn.sm{padding:5px 10px;font-size:13px;border-radius:7px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+label.f{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
+.inp{width:100%;border:1px solid #d9d3c5;border-radius:10px;padding:11px 13px;background:#fff;outline:none}
+.inp:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(19,33,63,.1)}
+select.inp{padding:9px 12px}
+.pw-wrap{position:relative}
+.pw-wrap .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer;color:var(--muted);padding:6px}
+
+/* ---------- pills ---------- */
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.green{background:var(--green-bg);color:var(--green)}
+.pill.red{background:var(--red-bg);color:var(--red)}
+.pill.amber{background:var(--amber-bg);color:var(--amber)}
+.pill.blue{background:var(--blue-bg);color:var(--blue)}
+.pill.grey{background:var(--grey-bg);color:var(--grey)}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:12px;color:var(--muted);margin:2px 4px 2px 0;background:#fff}
+
+/* ---------- login ---------- */
+.auth{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.auth-hero{background:radial-gradient(circle at 10% 5%,#2a3b63 0,transparent 40%),var(--navy);color:#e8ecf5;padding:56px 72px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.auth-hero::after{content:"";position:absolute;right:-160px;bottom:-160px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 60px rgba(255,255,255,.02)}
+.brand-line{font-family:"Source Serif 4",serif;font-size:20px;color:#c7cfe0}
+.brand-line b{color:var(--gold);font-weight:600}
+.hero-text h1{font-size:54px;line-height:1.1;color:#fff}
+.hero-text h1 em{font-style:normal;color:var(--gold)}
+.hero-text p{max-width:470px;font-size:17px;color:#c7cfe0;margin-top:22px}
+.hero-text p b{color:var(--gold)}
+.hero-foot{font-size:14px;color:#aab4c9}
+.hero-foot .caps{letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:8px;font-family:"Source Serif 4",serif}
+.auth-main{display:flex;align-items:center;justify-content:center;padding:40px 24px}
+.auth-card{width:100%;max-width:520px}
+.auth-card h2{font-size:36px;margin-bottom:16px}
+.note{border:1px solid #efe6cf;background:#fbf7ec;border-radius:12px;padding:12px 16px;color:var(--muted);font-size:14px}
+.note b{color:var(--amber)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;border:1px solid var(--line);border-radius:12px;padding:5px;margin:22px 0 4px;background:#fff}
+.seg button{border:0;background:none;padding:11px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--navy);color:#fff}
+.auth-card .submit{width:100%;justify-content:center;padding:14px;font-size:16px;margin-top:22px;border-radius:11px}
+.help{font-size:13px;color:var(--muted);text-align:right;margin-top:8px}
+.err{color:var(--red);font-size:14px;margin-top:12px;min-height:20px}
+.demo{margin-top:22px;border:1px dashed #cdbf98;border-radius:12px;padding:12px 16px;font-size:13px;background:#fffdf6}
+.demo table{border-collapse:collapse;width:100%;margin-top:6px}
+.demo td{padding:3px 6px 3px 0;vertical-align:top}
+.demo code{background:#f3eee0;padding:1px 5px;border-radius:4px;cursor:pointer}
+.fab{position:fixed;right:24px;bottom:24px;z-index:20;box-shadow:0 8px 24px rgba(212,165,43,.35);border-radius:14px;padding:13px 22px;font-size:16px}
+.pop{position:fixed;right:24px;bottom:86px;z-index:21;width:min(420px,calc(100vw - 32px));background:#fff;border-radius:14px;box-shadow:0 16px 40px rgba(19,33,63,.2);padding:18px;max-height:70vh;overflow:auto}
+.pop h3{font-family:Inter,sans-serif;font-size:18px}
+.pop .item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px}
+.pop .item b{display:block}
+
+/* ---------- app shell ---------- */
+.top{background:var(--navy);color:#fff;padding:0 24px}
+.top-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:16px;min-height:64px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-family:"Source Serif 4",serif;font-size:19px}
+.logo .mk{width:34px;height:34px;border-radius:9px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:700;font-size:11px;font-family:Inter}
+.top .who{margin-left:auto;text-align:right;font-size:13px;color:#c7cfe0;line-height:1.3}
+.top .who b{color:#fff;font-size:14px}
+.top .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.25)}
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 24px;overflow-x:auto}
+.tabs-in{max-width:1240px;margin:0 auto;display:flex;gap:4px}
+.tabs button{border:0;background:none;padding:14px 14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--navy);border-color:var(--gold)}
+.wrap{max-width:1240px;margin:0 auto;padding:24px}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.page-h h2{font-size:28px}
+.page-h p{margin:4px 0 0;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.kpi .l{font-size:13px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:30px;font-weight:700;font-family:"Source Serif 4",serif;margin-top:2px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-h h3{font-family:Inter,sans-serif;font-size:16px}
+.card-b{padding:18px 20px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* ---------- school task cards ---------- */
+.tasks{display:grid;gap:18px}
+.task-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.task-top h3{font-family:Inter,sans-serif;font-size:18px}
+.task-desc{color:var(--muted);margin:8px 0 10px;white-space:pre-line}
+.files{border-top:1px solid var(--line);margin-top:14px}
+.file{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f0ece2}
+.file:last-child{border-bottom:0}
+.ficon{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;text-transform:uppercase}
+.ficon.excel{background:#e3f4ec;color:#1f7a52}.ficon.pdf{background:#fbe7e5;color:#b8322a}.ficon.image{background:#efe7fb;color:#6b3fb0}
+.ficon.word{background:#e5eefa;color:#23579a}.ficon.other{background:var(--grey-bg);color:var(--grey)}
+.fmeta{flex:1;min-width:0}
+.fmeta .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmeta .s{font-size:12px;color:var(--muted)}
+.remark{font-size:13px;color:var(--red);margin-top:2px}
+.fact{display:flex;gap:6px;flex-wrap:wrap}
+.drop{margin-top:14px;border:2px dashed #d7cfbd;border-radius:12px;padding:18px;text-align:center;background:#fcfbf7;cursor:pointer;transition:.15s}
+.drop.over{border-color:var(--gold);background:#fff8e6}
+.drop b{color:var(--navy)}
+.queue{margin-top:10px;font-size:14px}
+.queue .q{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted var(--line)}
+.up-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.up-row input{flex:1;min-width:200px}
+
+/* ---------- tables ---------- */
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filters .inp{width:auto;min-width:150px}
+.tbl-wrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);background:#faf8f3;white-space:nowrap}
+table.t td{padding:10px 12px;border-bottom:1px solid #f0ece2;vertical-align:top}
+table.t tr:hover td{background:#fcfbf7}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.empty{padding:36px;text-align:center;color:var(--muted)}
+.bar{height:9px;background:#eeeae0;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);border-radius:9px}
+.prog-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 20px;border-bottom:1px solid #f0ece2}
+.prog-row:last-child{border-bottom:0}
+
+/* ---------- modal & toast ---------- */
+.modal{position:fixed;inset:0;background:rgba(15,22,40,.5);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:560px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-card h3{font-size:22px;margin-bottom:4px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.checks{display:flex;flex-wrap:wrap;gap:8px 16px}
+.checks label{display:flex;gap:6px;align-items:center;font-size:14px}
+.temp{font-family:ui-monospace,monospace;font-size:24px;letter-spacing:.12em;background:#fbf7ec;border:1px solid #efe6cf;border-radius:10px;padding:12px;text-align:center;margin:14px 0}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--navy);color:#fff;padding:12px 20px;border-radius:10px;z-index:60;transition:.25s;max-width:90vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.bad{background:var(--red)}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{padding:60px;text-align:center;color:var(--muted)}
+
+@media (max-width:900px){
+  .auth{grid-template-columns:1fr}
+  .auth-hero{padding:32px 20px}
+  .hero-text h1{font-size:36px}
+  .hero-text{margin:28px 0}
+  .hero-foot{display:none}
+  .kpis{grid-template-columns:1fr 1fr}
+  .prog-row{grid-template-columns:1fr}
+  .wrap{padding:16px}
+  .top,.tabs{padding:0 16px}
+  .grid2{grid-template-columns:1fr}
+  .top .who{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><span class="spin"></span></div></div>
+<div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* =====================================================================
+   SETTINGS — paste your Apps Script Web App URL below.
+   Leave it empty ('') to run the built-in DEMO with sample data.
+   ===================================================================== */
+const CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbxxShJUkv1cKrZGytLTTU4_ccKZ0zyTC4-HsfjSo-a_882QCYQRrkCuk3QmZC9VtkCxkA/exec',
+  APP_NAME: 'School File Submission Portal',
+  ORG_NAME: 'Asante Akyem North Municipal Education Directorate',
+  REGION: 'Ashanti Region',
+  MAX_FILE_MB: 15
+};
+
+const TYPE_MAP = { excel:['xls','xlsx','xlsm','csv'], pdf:['pdf'], image:['jpg','jpeg','png','webp','heic','gif'], word:['doc','docx'], powerpoint:['ppt','pptx'], any:[] };
+const TYPE_LABEL = { excel:'Excel', pdf:'PDF', image:'Photos', word:'Word', powerpoint:'PowerPoint', any:'Any file' };
+const ROLE_LABEL = { ADMIN:'Administrator', EMIS_OFFICER:'EMIS Officer', CIRCUIT_SUPERVISOR:'Circuit Supervisor', DIRECTOR:'Director / Management', SCHOOL:'School' };
+const LEVELS = ['KG','Primary','JHS','SHS'];
+const DEMO = !CONFIG.API_URL;
+
+const S = { token:null, user:null, mustChange:false, loginKind:'school', tab:'overview', data:null, home:null,
+            f:{ task:'', circuit:'', status:'', q:'' }, comp:{ task:'', missing:true, circuit:'' }, schoolQ:'' };
+
+/* ------------------------------ helpers ------------------------------ */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtDate(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?esc(d):x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtDT(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?esc(d):x.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function fmtSize(kb){ kb=Number(kb)||0; return kb>=1024?(kb/1024).toFixed(1)+' MB':Math.max(1,Math.round(kb))+' KB'; }
+const extOf = n => (String(n).toLowerCase().match(/\.([a-z0-9]+)$/)||[,''])[1];
+function kindOf(e){ for(const k of ['excel','pdf','image','word']) if(TYPE_MAP[k].includes(e)) return k; return 'other'; }
+function typeList(t){ return String(t||'any').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); }
+function allowedExts(t){ const l=typeList(t); if(!l.length||l.includes('any')) return null; return l.flatMap(k=>TYPE_MAP[k]||[]); }
+function levelsMatch(tl, sl){ const t=String(tl||'All').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); if(!t.length||t.includes('all')) return true; return String(sl||'').split(/[\/,;]/).map(x=>x.trim().toLowerCase()).some(x=>t.includes(x)); }
+function dueInfo(t){
+  if(t.Status!=='Open') return {cls:'grey',text:'Closed'};
+  if(!t['Due Date']) return {cls:'blue',text:'No deadline'};
+  const d=new Date(t['Due Date']+'T23:59:59'); const days=Math.ceil((d-new Date())/864e5);
+  if(days<0) return {cls:'red',text:`Overdue · was due ${fmtDate(t['Due Date'])}`};
+  if(days<=1) return {cls:'amber',text:days===0?'Due today':'Due tomorrow'};
+  if(days<=5) return {cls:'amber',text:`Due in ${days} days`};
+  return {cls:'blue',text:'Due '+fmtDate(t['Due Date'])};
+}
+function agg(subs){ if(!subs.length) return 'Not submitted'; if(subs.some(s=>s.Status==='Rejected')) return 'Rejected'; if(subs.every(s=>s.Status==='Accepted')) return 'Accepted'; return 'Submitted'; }
+const PILL = {'Not submitted':'grey','Submitted':'blue','Accepted':'green','Rejected':'red','Open':'green','Closed':'grey','Yes':'green','No':'grey'};
+const pill = s => `<span class="pill ${PILL[s]||'grey'}">${esc(s==='Submitted'?'Awaiting review':s)}</span>`;
+const isLate = (sub, task) => task && task['Due Date'] && new Date(sub['Submitted At']) > new Date(task['Due Date']+'T23:59:59');
+const can = { manage: r => ['ADMIN','EMIS_OFFICER'].includes(r), review: r => ['ADMIN','EMIS_OFFICER','CIRCUIT_SUPERVISOR'].includes(r) };
+
+function toast(msg, bad){ const t=$('#toast'); t.textContent=msg; t.className='toast show'+(bad?' bad':''); clearTimeout(t._h); t._h=setTimeout(()=>t.className='toast',3200); }
+function openModal(html){ $('#modalCard').innerHTML=html; $('#modal').classList.remove('hidden'); const f=$('#modalCard input,#modalCard textarea,#modalCard select'); if(f) f.focus(); }
+function closeModal(){ $('#modal').classList.add('hidden'); $('#modalCard').innerHTML=''; }
+$('#modal').addEventListener('mousedown', e => { if(e.target.id==='modal' && !S.mustChange) closeModal(); });
+function store(k,v){ try{ v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function load(k){ try{ return JSON.parse(sessionStorage.getItem(k)); }catch(e){ return null; } }
+function csv(rows, name){
+  const txt = rows.map(r=>r.map(v=>{ v=String(v??''); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(',')).join('\n');
+  saveBlob(new Blob(['﻿'+txt],{type:'text/csv'}), name);
+}
+function saveBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000); }
+function b64ToBlob(b64, mime){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Blob([u],{type:mime||'application/octet-stream'}); }
+const readB64 = file => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=()=>rej(new Error('Could not read '+file.name)); r.readAsDataURL(file); });
+
+/* ------------------------------ API ------------------------------ */
+async function api(action, payload={}){
+  const body = Object.assign({ action, token:S.token }, payload);
+  let j;
+  if(DEMO){ j = await Mock.call(body); }
+  else {
+    const res = await fetch(CONFIG.API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body) });
+    j = await res.json();
+  }
+  if(!j.ok){
+    if(j.error==='SESSION_EXPIRED'){ signOut(true); throw new Error('Your session expired. Please sign in again.'); }
+    throw new Error(j.error||'Something went wrong.');
+  }
+  return j.data;
+}
+
+/* ============================== LOGIN ============================== */
+function renderLogin(){
+  const school = S.loginKind==='school';
+  $('#app').innerHTML = `
+  <div class="auth">
+    <aside class="auth-hero">
+      <div class="brand-line"><b>GES Statistics</b> · ${esc(CONFIG.REGION)}</div>
+      <div class="hero-text">
+        <h1>School File<br><em>Submission</em><br>Portal</h1>
+        <p>Heads of school sign in with your <b>EMIS code</b> to submit Excel returns, PDFs, photos, assessment records and other documents requested by the Municipal Directorate.</p>
+      </div>
+      <div class="hero-foot"><div>${esc(CONFIG.ORG_NAME)}</div><div class="caps">EMIS Unit</div></div>
+    </aside>
+    <main class="auth-main"><div class="auth-card">
+      <h2>Sign in</h2>
+      <div class="note">ⓘ <b>${school?'Schools':'Directorate staff'}</b> · ${school?'Use your school\'s EMIS code and the password issued by the Municipal EMIS Office.':'Use the email address registered for you at the Directorate.'}</div>
+      <div class="seg"><button type="button" data-k="school" class="${school?'on':''}">School / Headteacher</button><button type="button" data-k="staff" class="${school?'':'on'}">Directorate Staff</button></div>
+      <form id="loginForm" autocomplete="on">
+        <label class="f" for="lid">${school?'School EMIS code':'Email address'}</label>
+        <input class="inp" id="lid" ${school?'inputmode="numeric" placeholder="e.g. 60101001"':'type="email" placeholder="name@ges.gov.gh"'} required>
+        <label class="f" for="lpw">Password</label>
+        <div class="pw-wrap"><input class="inp" id="lpw" type="password" required><button type="button" class="eye" onclick="const i=$('#lpw');i.type=i.type==='password'?'text':'password'">👁</button></div>
+        <div class="help">Forgot password? Ask the Municipal EMIS Office to reset it.</div>
+        <button class="btn primary submit" id="lbtn">Sign in</button>
+        <div class="err" id="lerr"></div>
+      </form>
+      ${DEMO?`<div class="demo"><b>Demo mode</b> — sample data only, nothing is saved online. Click a login to fill it in (password <code>demo123</code>):
+        <table>
+          <tr><td>School</td><td><code data-fill="school|60101001">60101001</code> <code data-fill="school|60102003">60102003</code></td></tr>
+          <tr><td>Staff</td><td><code data-fill="staff|admin@demo.gh">admin@demo.gh</code> <code data-fill="staff|emis@demo.gh">emis@demo.gh</code><br><code data-fill="staff|cs.agogo@demo.gh">cs.agogo@demo.gh</code> <code data-fill="staff|director@demo.gh">director@demo.gh</code></td></tr>
+        </table></div>`:''}
+    </div></main>
+    <button class="btn gold fab" id="fab">⬆ Open submissions</button>
+    <div class="pop hidden" id="pop"><h3>Open submissions</h3><div class="muted small">What schools are being asked to submit now.</div><div id="popList"><div class="loading"><span class="spin"></span></div></div></div>
+  </div>`;
+  $$('.seg button').forEach(b => b.onclick = () => { S.loginKind=b.dataset.k; renderLogin(); });
+  $$('[data-fill]').forEach(c => c.onclick = () => { const [k,id]=c.dataset.fill.split('|'); S.loginKind=k; renderLogin(); $('#lid').value=id; $('#lpw').value='demo123'; });
+  $('#fab').onclick = async () => {
+    const p=$('#pop'); p.classList.toggle('hidden'); if(p.classList.contains('hidden')) return;
+    try{
+      const tasks = await api('publicTasks');
+      $('#popList').innerHTML = tasks.length ? tasks.map(t=>{ const d=dueInfo(Object.assign({Status:'Open'},t)); return `<div class="item"><b>${esc(t.Title)}</b><span class="pill ${d.cls}">${esc(d.text)}</span> <span class="small muted">${typeList(t['Allowed Types']).map(k=>TYPE_LABEL[k]||k).join(' · ')}</span></div>`; }).join('') : '<div class="empty">No open submissions right now.</div>';
+    }catch(e){ $('#popList').innerHTML=`<div class="err">${esc(e.message)}</div>`; }
+  };
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault();
+    const btn=$('#lbtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span> Signing in…'; $('#lerr').textContent='';
+    try{
+      const r = await api('login', { kind:S.loginKind, id:$('#lid').value, password:$('#lpw').value });
+      S.token=r.token; S.user=r.user; S.mustChange=r.mustChange; store('fp_session',{token:r.token,user:r.user,mustChange:r.mustChange});
+      S.tab='overview'; boot();
+    }catch(err){ $('#lerr').textContent=err.message; btn.disabled=false; btn.textContent='Sign in'; }
+  };
+}
+
+function signOut(silent){
+  if(S.token && !silent) api('logout').catch(()=>{});
+  S.token=null; S.user=null; S.data=null; S.home=null; S.mustChange=false; store('fp_session',null); closeModal(); renderLogin();
+}
+
+function changePwModal(forced){
+  openModal(`<h3>${forced?'Set a new password':'Change password'}</h3>
+    <p class="muted small">${forced?'You signed in with a temporary password. Choose your own password to continue.':'At least 6 characters.'}</p>
+    <form id="cpf">
+      <label class="f">Current password</label><input class="inp" type="password" id="cp0" required>
+      <label class="f">New password</label><input class="inp" type="password" id="cp1" minlength="6" required>
+      <label class="f">Confirm new password</label><input class="inp" type="password" id="cp2" minlength="6" required>
+      <div class="err" id="cperr"></div>
+      <div class="modal-actions">${forced?'<button type="button" class="btn" onclick="signOut()">Sign out</button>':'<button type="button" class="btn" onclick="closeModal()">Cancel</button>'}<button class="btn primary" id="cpb">Save password</button></div>
+    </form>`);
+  $('#cpf').onsubmit = async e => {
+    e.preventDefault();
+    if($('#cp1').value!==$('#cp2').value){ $('#cperr').textContent='The new passwords do not match.'; return; }
+    $('#cpb').disabled=true;
+    try{ await api('changePassword',{oldPassword:$('#cp0').value,newPassword:$('#cp1').value}); S.mustChange=false; store('fp_session',{token:S.token,user:S.user,mustChange:false}); closeModal(); toast('Password changed.'); }
+    catch(err){ $('#cperr').textContent=err.message; $('#cpb').disabled=false; }
+  };
+}
+
+function shell(tabs){
+  const u=S.user;
+  return `<header class="top"><div class="top-in">
+      <div class="logo"><div class="mk">GES</div><span>${esc(CONFIG.APP_NAME)}</span></div>
+      <div class="who"><b>${esc(u.name)}</b><br>${u.role==='SCHOOL'?'EMIS '+esc(u.emis)+' · '+esc(u.circuit||'')+' Circuit':esc(ROLE_LABEL[u.role])+(u.role==='CIRCUIT_SUPERVISOR'?' · '+esc(u.circuit):'')}</div>
+      <button class="btn sm" onclick="changePwModal()">Password</button>
+      <button class="btn sm" onclick="signOut()">Sign out</button>
+    </div></header>
+    ${tabs?`<nav class="tabs"><div class="tabs-in">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('')}</div></nav>`:''}
+    <main class="wrap" id="view"><div class="loading"><span class="spin"></span></div></main>`;
+}
+
+async function boot(){
+  if(!S.token) return renderLogin();
+  if(S.user.role==='SCHOOL'){ $('#app').innerHTML=shell(); await loadSchool(); }
+  else { await loadStaff(); }
+  if(S.mustChange) changePwModal(true);
+}
+
+/* ============================== SCHOOL ============================== */
+async function loadSchool(){
+  try{ S.home = await api('schoolHome'); renderSchool(); }
+  catch(e){ if(S.token) $('#view').innerHTML=`<div class="empty">${esc(e.message)}</div>`; }
+}
+
+function renderSchool(){
+  const {tasks, submissions} = S.home;
+  const by = id => submissions.filter(s=>s['Task ID']===id).sort((a,b)=>String(b['Submitted At']).localeCompare(a['Submitted At']));
+  const open = tasks.filter(t=>t.Status==='Open');
+  const done = open.filter(t=>by(t['Task ID']).length).length;
+  const rej = open.filter(t=>agg(by(t['Task ID']))==='Rejected').length;
+  const order = [...tasks].sort((a,b)=> (a.Status===b.Status?0:a.Status==='Open'?-1:1) || String(a['Due Date']||'9').localeCompare(String(b['Due Date']||'9')));
+  $('#view').innerHTML = `
+    <div class="page-h"><div><h2>${esc(S.user.name)}</h2><p>Submit the files requested by the Directorate. You can upload several files for each item.</p></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Open requests</div><div class="v">${open.length}</div></div>
+      <div class="kpi"><div class="l">You have submitted</div><div class="v">${done}</div></div>
+      <div class="kpi"><div class="l">Still to submit</div><div class="v" style="color:${open.length-done?'var(--amber)':'inherit'}">${open.length-done}</div></div>
+      <div class="kpi"><div class="l">Returned for correction</div><div class="v" style="color:${rej?'var(--red)':'inherit'}">${rej}</div></div>
+    </div>
+    <div class="tasks">${order.length?order.map(t=>taskCard(t, by(t['Task ID']))).join(''):'<div class="card empty">No submissions have been requested from your school yet.</div>'}</div>`;
+  order.forEach(t => wireUpload(t));
+}
+
+function taskCard(t, subs){
+  const d=dueInfo(t), st=agg(subs), open=t.Status==='Open', ex=allowedExts(t['Allowed Types']);
+  const max=Number(t['Max Files'])||0, full = max && subs.length>=max;
+  return `<section class="card"><div class="card-b">
+    <div class="task-top"><div><h3>${esc(t.Title)}</h3>
+      <div style="margin-top:6px">${typeList(t['Allowed Types']).map(k=>`<span class="chip">${esc(TYPE_LABEL[k]||k)}</span>`).join('')}${max?`<span class="chip">Up to ${max} file${max>1?'s':''}</span>`:''}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${pill(st)}<span class="pill ${d.cls}">${esc(d.text)}</span></div></div>
+    ${t.Description?`<div class="task-desc">${esc(t.Description)}</div>`:''}
+    ${subs.length?`<div class="files">${subs.map(s=>fileRow(s,t,open)).join('')}</div>`:''}
+    ${open && !full?`
+      <div class="drop" data-drop="${esc(t['Task ID'])}">
+        <input type="file" multiple class="hidden" data-inp="${esc(t['Task ID'])}" ${ex?`accept="${ex.map(e=>'.'+e).join(',')}"`:''}>
+        <b>Click to choose files</b> or drag them here<div class="small muted">${ex?'Accepted: '+ex.map(e=>'.'+e).join(' '):'Any file type'} · max ${CONFIG.MAX_FILE_MB} MB each</div>
+      </div>
+      <div class="queue" data-q="${esc(t['Task ID'])}"></div>
+      <div class="up-row hidden" data-up="${esc(t['Task ID'])}">
+        <input class="inp" placeholder="Optional note to the Directorate" data-note="${esc(t['Task ID'])}">
+        <button class="btn primary" data-go="${esc(t['Task ID'])}">⬆ Upload files</button>
+      </div>`:(open&&full?`<p class="small muted" style="margin-top:12px">File limit reached. Delete a file to upload a replacement.</p>`:'')}
+  </div></section>`;
+}
+
+function fileRow(s, t, open){
+  const e=s['File Type']||extOf(s['File Name']);
+  return `<div class="file"><div class="ficon ${kindOf(e)}">${esc(e.slice(0,4))}</div>
+    <div class="fmeta"><div class="n" title="${esc(s['File Name'])}">${esc(s['File Name'])}</div>
+      <div class="s">${fmtSize(s['Size KB'])} · ${fmtDT(s['Submitted At'])}${isLate(s,t)?' · <span style="color:var(--amber)">late</span>':''}${s.Note?' · “'+esc(s.Note)+'”':''}</div>
+      ${s.Status==='Rejected'&&s.Remark?`<div class="remark">Returned: ${esc(s.Remark)}</div>`:''}
+      ${s.Status==='Accepted'&&s.Remark?`<div class="small" style="color:var(--green)">${esc(s.Remark)}</div>`:''}
+    </div>
+    ${pill(s.Status)}
+    <div class="fact"><button class="btn sm" onclick="dl('${esc(s['Submission ID'])}')">Download</button>
+    ${open && s.Status!=='Accepted'?`<button class="btn sm danger" onclick="delMine('${esc(s['Submission ID'])}')">Delete</button>`:''}</div></div>`;
+}
+
+const pending = {};
+function wireUpload(t){
+  const id=t['Task ID'], drop=$(`[data-drop="${id}"]`); if(!drop) return;
+  const inp=$(`[data-inp="${id}"]`), ex=allowedExts(t['Allowed Types']);
+  pending[id]=[];
+  const add = files => {
+    for(const f of files){
+      const e=extOf(f.name);
+      if(ex && !ex.includes(e)){ toast(`${f.name}: .${e} files are not accepted here.`, true); continue; }
+      if(f.size > CONFIG.MAX_FILE_MB*1048576){ toast(`${f.name} is larger than ${CONFIG.MAX_FILE_MB} MB.`, true); continue; }
+      if(!f.size){ toast(`${f.name} is empty.`, true); continue; }
+      pending[id].push(f);
+    }
+    drawQueue(id);
+  };
+  drop.onclick = () => inp.click();
+  inp.onchange = () => { add(inp.files); inp.value=''; };
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); add(e.dataTransfer.files); };
+  $(`[data-go="${id}"]`).onclick = () => doUpload(t);
+}
+function drawQueue(id){
+  const q=pending[id];
+  $(`[data-q="${id}"]`).innerHTML = q.map((f,i)=>`<div class="q"><span>${esc(f.name)} <span class="muted">(${fmtSize(f.size/1024)})</span></span><span data-st="${id}-${i}"><a href="#" onclick="pending['${id}'].splice(${i},1);drawQueue('${id}');return false">remove</a></span></div>`).join('');
+  $(`[data-up="${id}"]`).classList.toggle('hidden', !q.length);
+}
+async function doUpload(t){
+  const id=t['Task ID'], q=pending[id], btn=$(`[data-go="${id}"]`), note=$(`[data-note="${id}"]`).value;
+  if(!q.length) return;
+  btn.disabled=true; let ok=0;
+  for(let i=0;i<q.length;i++){
+    const cell=$(`[data-st="${id}-${i}"]`); cell.innerHTML='<span class="spin"></span> uploading…';
+    btn.innerHTML=`<span class="spin"></span> Uploading ${i+1} of ${q.length}`;
+    try{
+      const data=await readB64(q[i]);
+      await api('upload',{ taskId:id, fileName:q[i].name, mimeType:q[i].type, data, note });
+      cell.innerHTML='<span style="color:var(--green)">✓ done</span>'; ok++;
+    }catch(e){ cell.innerHTML=`<span style="color:var(--red)">✗ ${esc(e.message)}</span>`; }
+  }
+  toast(ok===q.length?`${ok} file${ok>1?'s':''} submitted.`:`${ok} of ${q.length} uploaded — check the errors.`, ok!==q.length);
+  if(ok===q.length){ pending[id]=[]; await loadSchool(); }
+  else { btn.disabled=false; btn.textContent='⬆ Upload files'; }
+}
+async function delMine(id){
+  openModal(`<h3>Delete this file?</h3><p class="muted">It will be removed from your submission. You can upload a replacement afterwards.</p>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="dy">Delete</button></div>`);
+  $('#dy').onclick = async () => { $('#dy').disabled=true; try{ await api('deleteMySubmission',{id}); closeModal(); toast('File deleted.'); loadSchool(); }catch(e){ closeModal(); toast(e.message,true); } };
+}
+async function dl(id){
+  toast('Preparing download…');
+  try{ const f=await api('download',{id}); saveBlob(b64ToBlob(f.data,f.mime), f.name); }catch(e){ toast(e.message,true); }
+}
+
+/* ============================== STAFF ============================== */
+function staffTabs(){
+  const r=S.user.role, t=[['overview','Overview'],['subs','Submissions'],['comp','Who has submitted']];
+  if(can.manage(r)) t.push(['tasks','Requests'],['schools','Schools']);
+  if(r==='ADMIN') t.push(['users','Staff accounts']);
+  return t;
+}
+async function loadStaff(keepView){
+  if(!keepView){ $('#app').innerHTML=shell(staffTabs()); wireTabs(); }
+  try{ S.data = await api('staffData'); renderStaff(); }
+  catch(e){ if(S.token) $('#view').innerHTML=`<div class="empty">${esc(e.message)}</div>`; }
+}
+function wireTabs(){ $$('.tabs button').forEach(b => b.onclick = () => { S.tab=b.dataset.tab; $$('.tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderStaff(); }); }
+function renderStaff(){
+  if(!S.data) return;
+  const v={overview:vOverview,subs:vSubs,comp:vComp,tasks:vTasks,schools:vSchools,users:vUsers}[S.tab]||vOverview;
+  v();
+}
+const taskById = id => S.data.tasks.find(t=>t['Task ID']===id);
+const circuits = () => [...new Set(S.data.schools.map(s=>s.Circuit).filter(Boolean))].sort();
+const activeSchools = () => S.data.schools.filter(s=>String(s.Active).toLowerCase()!=='no');
+function taskProgress(t, circuit){
+  const sch = activeSchools().filter(s=>levelsMatch(t.Levels,s.Level) && (!circuit||s.Circuit===circuit));
+  const subs = S.data.submissions.filter(x=>x['Task ID']===t['Task ID']);
+  const rows = sch.map(s=>{ const m=subs.filter(x=>String(x['EMIS Code'])===String(s['EMIS Code'])); return {s, m, st:agg(m), last:m.map(x=>x['Submitted At']).sort().pop()}; });
+  return { rows, total:sch.length, done:rows.filter(r=>r.m.length).length, pending:subs.filter(x=>x.Status==='Submitted'&&sch.some(s=>String(s['EMIS Code'])===String(x['EMIS Code']))).length };
+}
+
+function vOverview(){
+  const d=S.data, open=d.tasks.filter(t=>t.Status==='Open');
+  const awaiting=d.submissions.filter(s=>s.Status==='Submitted').length;
+  const week=d.submissions.filter(s=>new Date(s['Submitted At'])>Date.now()-7*864e5).length;
+  const circ=circuits();
+  $('#view').innerHTML = `
+    <div class="page-h"><div><h2>Overview</h2><p>${S.user.role==='CIRCUIT_SUPERVISOR'?esc(S.user.circuit)+' Circuit · ':''}${activeSchools().length} schools</p></div>
+      <button class="btn" onclick="loadStaff(true)">↻ Refresh</button></div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Open requests</div><div class="v">${open.length}</div></div>
+      <div class="kpi"><div class="l">Files received</div><div class="v">${d.submissions.length}</div></div>
+      <div class="kpi"><div class="l">Awaiting review</div><div class="v" style="color:${awaiting?'var(--amber)':'inherit'}">${awaiting}</div></div>
+      <div class="kpi"><div class="l">Uploaded in last 7 days</div><div class="v">${week}</div></div>
+    </div>
+    <div class="card"><div class="card-h"><h3>Progress on open requests</h3><span class="muted small">schools that have submitted at least one file</span></div>
+      ${open.length?open.map(t=>{ const p=taskProgress(t), pct=p.total?Math.round(p.done/p.total*100):0, di=dueInfo(t);
+        return `<div class="prog-row"><div><b>${esc(t.Title)}</b><div class="small muted"><span class="pill ${di.cls}">${esc(di.text)}</span> ${p.pending?`· ${p.pending} awaiting review`:''}</div></div>
+          <div><div class="bar"><i style="width:${pct}%"></i></div><div class="small muted" style="margin-top:4px">${p.done} of ${p.total} schools · ${pct}%</div></div>
+          <div><button class="btn sm" onclick="S.comp.task='${esc(t['Task ID'])}';S.comp.missing=true;goTab('comp')">${p.total-p.done} not submitted →</button></div></div>`; }).join(''):'<div class="empty">No open requests.'+(can.manage(S.user.role)?' Create one under <b>Requests</b>.':'')+'</div>'}
+    </div>
+    ${circ.length>1 && open.length?`<div class="card" style="margin-top:18px"><div class="card-h"><h3>By circuit</h3><span class="muted small">% of schools submitted, per open request</span></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Circuit</th>${open.map(t=>`<th class="num">${esc(t.Title.length>28?t.Title.slice(0,26)+'…':t.Title)}</th>`).join('')}</tr></thead><tbody>
+      ${circ.map(c=>`<tr><td>${esc(c)}</td>${open.map(t=>{const p=taskProgress(t,c); const pct=p.total?Math.round(p.done/p.total*100):null; return `<td class="num">${pct==null?'—':`<span style="color:${pct===100?'var(--green)':pct<50?'var(--red)':'inherit'}">${p.done}/${p.total} · ${pct}%</span>`}</td>`;}).join('')}</tr>`).join('')}
+      </tbody></table></div></div>`:''}`;
+}
+function goTab(k){ S.tab=k; $$('.tabs button').forEach(x=>x.classList.toggle('on',x.dataset.tab===k)); renderStaff(); window.scrollTo(0,0); }
+
+function vSubs(){
+  const d=S.data, f=S.f, r=S.user.role, cs=r==='CIRCUIT_SUPERVISOR';
+  const list = d.submissions.filter(s=>(!f.task||s['Task ID']===f.task)&&(!f.circuit||s.Circuit===f.circuit)&&(!f.status||s.Status===f.status)
+      &&(!f.q||(s['School Name']+' '+s['EMIS Code']+' '+s['File Name']).toLowerCase().includes(f.q.toLowerCase())))
+    .sort((a,b)=>String(b['Submitted At']).localeCompare(a['Submitted At']));
+  $('#view').innerHTML = `
+    <div class="page-h"><div><h2>Submissions</h2><p>${list.length} file${list.length===1?'':'s'} shown</p></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="exportSubs()">⤓ Export list (CSV)</button><button class="btn" onclick="loadStaff(true)">↻ Refresh</button></div></div>
+    <div class="card"><div class="card-h filters">
+      <select class="inp" id="fTask"><option value="">All requests</option>${d.tasks.map(t=>`<option value="${esc(t['Task ID'])}" ${f.task===t['Task ID']?'selected':''}>${esc(t.Title)}</option>`).join('')}</select>
+      ${cs?'':`<select class="inp" id="fCirc"><option value="">All circuits</option>${circuits().map(c=>`<option ${f.circuit===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`}
+      <select class="inp" id="fStat"><option value="">Any status</option>${['Submitted','Accepted','Rejected'].map(s=>`<option value="${s}" ${f.status===s?'selected':''}>${s==='Submitted'?'Awaiting review':s}</option>`).join('')}</select>
+      <input class="inp" id="fQ" placeholder="Search school, EMIS or file" value="${esc(f.q)}" style="flex:1">
+    </div>
+    <div class="tbl-wrap">${list.length?`<table class="t"><thead><tr><th>Uploaded</th><th>School</th><th>Circuit</th><th>Request</th><th>File</th><th>Status</th><th></th></tr></thead><tbody>
+      ${list.map(s=>{ const t=taskById(s['Task ID']); const e=s['File Type']||extOf(s['File Name']); return `<tr>
+        <td class="small">${fmtDT(s['Submitted At'])}${isLate(s,t)?'<br><span class="pill amber">late</span>':''}</td>
+        <td><b>${esc(s['School Name'])}</b><div class="small muted">${esc(s['EMIS Code'])}</div></td>
+        <td>${esc(s.Circuit)}</td>
+        <td class="small">${esc(s['Task Title'])}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="ficon ${kindOf(e)}" style="width:30px;height:30px;font-size:10px">${esc(e.slice(0,4))}</div><div><div style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s['File Name'])}">${esc(s['File Name'])}</div><div class="small muted">${fmtSize(s['Size KB'])}${s.Note?' · “'+esc(s.Note)+'”':''}</div></div></div></td>
+        <td>${pill(s.Status)}${s.Remark?`<div class="small muted" style="max-width:200px">${esc(s.Remark)}</div>`:''}${s.Reviewer?`<div class="small muted">by ${esc(s.Reviewer)}</div>`:''}</td>
+        <td><div class="fact"><button class="btn sm" onclick="dl('${esc(s['Submission ID'])}')">Download</button>
+          ${can.review(r)?`${s.Status!=='Accepted'?`<button class="btn sm ok" onclick="reviewModal('${esc(s['Submission ID'])}','Accepted')">Accept</button>`:''}${s.Status!=='Rejected'?`<button class="btn sm danger" onclick="reviewModal('${esc(s['Submission ID'])}','Rejected')">Return</button>`:''}`:''}</div></td></tr>`; }).join('')}
+      </tbody></table>`:'<div class="empty">No files match these filters.</div>'}</div></div>`;
+  const on=(id,k)=>{ const el=$('#'+id); if(el) el.onchange=()=>{ S.f[k]=el.value; vSubs(); }; };
+  on('fTask','task'); on('fCirc','circuit'); on('fStat','status');
+  const q=$('#fQ'); q.oninput=()=>{ S.f.q=q.value; clearTimeout(q._t); q._t=setTimeout(()=>{ vSubs(); const n=$('#fQ'); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },300); };
+  S._subsList=list;
+}
+function exportSubs(){
+  csv([['Uploaded','EMIS Code','School','Circuit','Level','Request','File','Size KB','Status','Reviewer','Remark','Note'],
+    ...(S._subsList||[]).map(s=>[fmtDT(s['Submitted At']),s['EMIS Code'],s['School Name'],s.Circuit,s.Level,s['Task Title'],s['File Name'],s['Size KB'],s.Status,s.Reviewer,s.Remark,s.Note])], 'submissions.csv');
+}
+function reviewModal(id, status){
+  const s=S.data.submissions.find(x=>x['Submission ID']===id);
+  const acc=status==='Accepted';
+  openModal(`<h3>${acc?'Accept file':'Return file to school'}</h3>
+    <p class="muted"><b>${esc(s['School Name'])}</b> · ${esc(s['File Name'])}</p>
+    <label class="f">${acc?'Comment (optional)':'What should the school correct?'}</label>
+    <textarea class="inp" id="rvr" rows="3" ${acc?'':'required'} placeholder="${acc?'e.g. Well done':'e.g. Enrolment totals for P4 do not add up. Correct and re-upload.'}"></textarea>
+    <div class="err" id="rverr"></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="rvb">${acc?'Accept':'Return to school'}</button></div>`);
+  $('#rvb').onclick = async () => {
+    const remark=$('#rvr').value.trim();
+    if(!acc && !remark){ $('#rverr').textContent='Please tell the school what to fix.'; return; }
+    $('#rvb').disabled=true;
+    try{ await api('review',{id,status,remark}); Object.assign(s,{Status:status,Remark:remark,Reviewer:S.user.name,'Reviewed At':new Date().toISOString()}); closeModal(); toast(acc?'File accepted.':'File returned to school.'); renderStaff(); }
+    catch(e){ $('#rverr').textContent=e.message; $('#rvb').disabled=false; }
+  };
+}
+
+function vComp(){
+  const d=S.data, c=S.comp, cs=S.user.role==='CIRCUIT_SUPERVISOR';
+  if(!c.task || !taskById(c.task)){ const o=d.tasks.find(t=>t.Status==='Open')||d.tasks[0]; c.task=o?o['Task ID']:''; }
+  const t=taskById(c.task);
+  if(!t){ $('#view').innerHTML='<div class="card empty">No requests yet.</div>'; return; }
+  const p=taskProgress(t, c.circuit);
+  const rows=p.rows.filter(r=>!c.missing||!r.m.length).sort((a,b)=>String(a.s.Circuit).localeCompare(b.s.Circuit)||String(a.s['School Name']).localeCompare(b.s['School Name']));
+  S._compRows=rows;
+  $('#view').innerHTML=`
+    <div class="page-h"><div><h2>Who has submitted</h2><p>${p.done} of ${p.total} schools have submitted for this request</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="copyDefaulters()">⧉ Copy list for WhatsApp</button><button class="btn" onclick="exportComp()">⤓ CSV</button></div></div>
+    <div class="card"><div class="card-h filters">
+      <select class="inp" id="cTask">${d.tasks.map(x=>`<option value="${esc(x['Task ID'])}" ${x['Task ID']===c.task?'selected':''}>${esc(x.Title)}${x.Status==='Closed'?' (closed)':''}</option>`).join('')}</select>
+      ${cs?'':`<select class="inp" id="cCirc"><option value="">All circuits</option>${circuits().map(x=>`<option ${c.circuit===x?'selected':''}>${esc(x)}</option>`).join('')}</select>`}
+      <div class="seg" style="margin:0;grid-template-columns:auto auto"><button data-m="1" class="${c.missing?'on':''}">Not submitted (${p.total-p.done})</button><button data-m="0" class="${c.missing?'':'on'}">All schools (${p.total})</button></div>
+    </div>
+    <div class="tbl-wrap">${rows.length?`<table class="t"><thead><tr><th>EMIS</th><th>School</th><th>Circuit</th><th>Level</th><th>Head / phone</th><th class="num">Files</th><th>Status</th><th>Last upload</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${esc(r.s['EMIS Code'])}</td><td><b>${esc(r.s['School Name'])}</b></td><td>${esc(r.s.Circuit)}</td><td class="small">${esc(r.s.Level)}</td>
+        <td class="small">${esc(r.s['Head Name'])}${r.s.Phone?`<br><a href="tel:${esc(r.s.Phone)}">${esc(r.s.Phone)}</a>`:''}</td><td class="num">${r.m.length}</td><td>${pill(r.st)}</td><td class="small">${r.last?fmtDT(r.last):'—'}</td></tr>`).join('')}
+      </tbody></table>`:`<div class="empty">${c.missing?'🎉 Every school has submitted.':'No schools match.'}</div>`}</div></div>`;
+  $('#cTask').onchange=e=>{ c.task=e.target.value; vComp(); };
+  if($('#cCirc')) $('#cCirc').onchange=e=>{ c.circuit=e.target.value; vComp(); };
+  $$('[data-m]').forEach(b=>b.onclick=()=>{ c.missing=b.dataset.m==='1'; vComp(); });
+}
+function copyDefaulters(){
+  const t=taskById(S.comp.task); const miss=taskProgress(t,S.comp.circuit).rows.filter(r=>!r.m.length);
+  const byC={}; miss.forEach(r=>(byC[r.s.Circuit||'—']=byC[r.s.Circuit||'—']||[]).push(r.s['School Name']));
+  const txt=`*${t.Title}* — schools yet to submit (${miss.length})${t['Due Date']?'\nDeadline: '+fmtDate(t['Due Date']):''}\n\n`+Object.keys(byC).sort().map(c=>`_${c}_\n`+byC[c].sort().map((n,i)=>`${i+1}. ${n}`).join('\n')).join('\n\n');
+  navigator.clipboard.writeText(txt).then(()=>toast('List copied. Paste it into WhatsApp.'),()=>{ openModal(`<h3>Copy this list</h3><textarea class="inp" rows="14">${esc(txt)}</textarea><div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>`); });
+}
+function exportComp(){
+  const t=taskById(S.comp.task);
+  csv([['EMIS Code','School','Circuit','Level','Head','Phone','Files','Status','Last upload'],...(S._compRows||[]).map(r=>[r.s['EMIS Code'],r.s['School Name'],r.s.Circuit,r.s.Level,r.s['Head Name'],r.s.Phone,r.m.length,r.st,r.last?fmtDT(r.last):''])], `${t.Title.replace(/\W+/g,'_')}_status.csv`);
+}
+
+/* ---- Requests (tasks) ---- */
+function vTasks(){
+  const d=S.data;
+  const list=[...d.tasks].sort((a,b)=>(a.Status===b.Status?0:a.Status==='Open'?-1:1)||String(b['Created At']).localeCompare(a['Created At']));
+  $('#view').innerHTML=`
+    <div class="page-h"><div><h2>Submission requests</h2><p>Each request is something schools must upload — e.g. a return, an assessment record, photos.</p></div>
+      <button class="btn primary" onclick="taskModal()">＋ New request</button></div>
+    <div class="card"><div class="tbl-wrap">${list.length?`<table class="t"><thead><tr><th>Request</th><th>For</th><th>File types</th><th>Deadline</th><th class="num">Schools submitted</th><th>Status</th><th></th></tr></thead><tbody>
+      ${list.map(t=>{ const p=taskProgress(t); return `<tr><td><b>${esc(t.Title)}</b><div class="small muted">${esc(t['Task ID'])}</div></td><td class="small">${esc(t.Levels||'All')}</td>
+        <td>${typeList(t['Allowed Types']).map(k=>`<span class="chip">${esc(TYPE_LABEL[k]||k)}</span>`).join('')}</td><td class="small">${fmtDate(t['Due Date'])}</td>
+        <td class="num">${p.done} / ${p.total}</td><td>${pill(t.Status)}</td>
+        <td><div class="fact"><button class="btn sm" onclick="taskModal('${esc(t['Task ID'])}')">Edit</button>
+          <button class="btn sm" onclick="toggleTask('${esc(t['Task ID'])}')">${t.Status==='Open'?'Close':'Reopen'}</button>
+          ${DEMO?'':`<button class="btn sm" onclick="openFolder('${esc(t['Task ID'])}')">Drive folder</button>`}</div></td></tr>`; }).join('')}
+      </tbody></table>`:'<div class="empty">No requests yet. Click <b>New request</b> to ask schools for files.</div>'}</div></div>`;
+}
+function taskModal(id){
+  const t=id?taskById(id):{Levels:'All','Allowed Types':'excel,pdf',Status:'Open','Max Files':''};
+  const lv=String(t.Levels||'All').split(',').map(x=>x.trim()); const ty=typeList(t['Allowed Types']);
+  openModal(`<h3>${id?'Edit request':'New submission request'}</h3>
+    <form id="tf">
+      <label class="f">Title</label><input class="inp" id="tTitle" value="${esc(t.Title||'')}" placeholder="e.g. Term 1 SBA Assessment Records" required>
+      <label class="f">Instructions to schools</label><textarea class="inp" id="tDesc" rows="3" placeholder="What exactly should be uploaded?">${esc(t.Description||'')}</textarea>
+      <label class="f">Which schools?</label>
+      <div class="checks"><label><input type="checkbox" value="All" data-lv ${lv.includes('All')?'checked':''}> All schools</label>${LEVELS.map(l=>`<label><input type="checkbox" value="${l}" data-lv ${lv.includes(l)?'checked':''}> ${l}</label>`).join('')}</div>
+      <label class="f">Accepted file types</label>
+      <div class="checks">${Object.keys(TYPE_LABEL).map(k=>`<label><input type="checkbox" value="${k}" data-ty ${ty.includes(k)?'checked':''}> ${TYPE_LABEL[k]}</label>`).join('')}</div>
+      <div class="grid2">
+        <div><label class="f">Deadline</label><input class="inp" type="date" id="tDue" value="${esc(t['Due Date']||'')}"></div>
+        <div><label class="f">Max files per school</label><input class="inp" type="number" min="0" id="tMax" value="${esc(t['Max Files']||'')}" placeholder="No limit"></div>
+      </div>
+      <label class="f">Status</label><select class="inp" id="tStat"><option ${t.Status==='Open'?'selected':''}>Open</option><option ${t.Status==='Closed'?'selected':''}>Closed</option></select>
+      <div class="err" id="terr"></div>
+      <div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="tb">${id?'Save changes':'Create request'}</button></div>
+    </form>`);
+  $$('[data-lv]').forEach(c=>c.onchange=()=>{ if(c.value==='All'&&c.checked) $$('[data-lv]').forEach(x=>{ if(x!==c) x.checked=false; }); else if(c.checked) $('[data-lv][value="All"]').checked=false; });
+  $$('[data-ty]').forEach(c=>c.onchange=()=>{ if(c.value==='any'&&c.checked) $$('[data-ty]').forEach(x=>{ if(x!==c) x.checked=false; }); else if(c.checked) $('[data-ty][value="any"]').checked=false; });
+  $('#tf').onsubmit=async e=>{
+    e.preventDefault();
+    const levels=$$('[data-lv]:checked').map(x=>x.value), types=$$('[data-ty]:checked').map(x=>x.value);
+    if(!levels.length){ $('#terr').textContent='Choose which schools must submit.'; return; }
+    if(!types.length){ $('#terr').textContent='Choose at least one file type.'; return; }
+    $('#tb').disabled=true;
+    try{ await api('saveTask',{task:{'Task ID':id||'',Title:$('#tTitle').value,Description:$('#tDesc').value,Levels:levels.join(','),'Allowed Types':types.join(','),'Due Date':$('#tDue').value,'Max Files':$('#tMax').value,Status:$('#tStat').value}});
+      closeModal(); toast(id?'Request updated.':'Request created — schools can now upload.'); loadStaff(true); }
+    catch(err){ $('#terr').textContent=err.message; $('#tb').disabled=false; }
+  };
+}
+async function toggleTask(id){
+  const t=taskById(id);
+  try{ await api('saveTask',{task:Object.assign({},t,{Status:t.Status==='Open'?'Closed':'Open'})}); toast(t.Status==='Open'?'Request closed. Schools can no longer upload.':'Request reopened.'); loadStaff(true); }catch(e){ toast(e.message,true); }
+}
+async function openFolder(id){ const w=window.open('about:blank'); try{ const r=await api('taskFolder',{taskId:id}); w.location=r.url; }catch(e){ w.close(); toast(e.message,true); } }
+
+/* ---- Schools ---- */
+function vSchools(){
+  const q=S.schoolQ.toLowerCase();
+  const list=S.data.schools.filter(s=>!q||(s['School Name']+' '+s['EMIS Code']+' '+s.Circuit+' '+s['Head Name']).toLowerCase().includes(q))
+    .sort((a,b)=>String(a.Circuit).localeCompare(b.Circuit)||String(a['School Name']).localeCompare(b['School Name']));
+  $('#view').innerHTML=`
+    <div class="page-h"><div><h2>Schools</h2><p>${S.data.schools.length} schools. To add many at once, paste them into the <b>Schools</b> sheet and use <i>File Portal ▸ Generate passwords</i>.</p></div>
+      <button class="btn primary" onclick="schoolModal()">＋ Add school</button></div>
+    <div class="card"><div class="card-h"><input class="inp" id="sq" placeholder="Search schools" value="${esc(S.schoolQ)}"></div>
+    <div class="tbl-wrap"><table class="t"><thead><tr><th>EMIS</th><th>School</th><th>Level</th><th>Circuit</th><th>Head</th><th>Last login</th><th>Active</th><th></th></tr></thead><tbody>
+      ${list.map(s=>`<tr><td>${esc(s['EMIS Code'])}</td><td><b>${esc(s['School Name'])}</b></td><td class="small">${esc(s.Level)}</td><td>${esc(s.Circuit)}</td>
+        <td class="small">${esc(s['Head Name'])}<br>${esc(s.Phone)}</td><td class="small">${s['Last Login']?fmtDT(s['Last Login']):'<span class="muted">never</span>'}</td><td>${pill(String(s.Active).toLowerCase()==='no'?'No':'Yes')}</td>
+        <td><div class="fact"><button class="btn sm" onclick="schoolModal('${esc(s['EMIS Code'])}')">Edit</button><button class="btn sm" onclick="resetPw('school','${esc(s['EMIS Code'])}','${esc(s['School Name']).replace(/'/g,'')}')">Reset password</button></div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  const i=$('#sq'); i.oninput=()=>{ S.schoolQ=i.value; clearTimeout(i._t); i._t=setTimeout(()=>{ vSchools(); const n=$('#sq'); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },250); };
+}
+function schoolModal(emis){
+  const s=emis?S.data.schools.find(x=>String(x['EMIS Code'])===String(emis)):{Active:'Yes'};
+  openModal(`<h3>${emis?'Edit school':'Add school'}</h3><form id="sf">
+    <div class="grid2"><div><label class="f">EMIS code</label><input class="inp" id="sE" value="${esc(s['EMIS Code']||'')}" required></div>
+      <div><label class="f">Circuit</label><input class="inp" id="sC" list="circs" value="${esc(s.Circuit||'')}" required><datalist id="circs">${circuits().map(c=>`<option>${esc(c)}</option>`).join('')}</datalist></div></div>
+    <label class="f">School name</label><input class="inp" id="sN" value="${esc(s['School Name']||'')}" required>
+    <label class="f">Level(s)</label><div class="checks">${LEVELS.map(l=>`<label><input type="checkbox" data-sl value="${l}" ${String(s.Level||'').split(/[\/,;]/).map(x=>x.trim()).includes(l)?'checked':''}> ${l}</label>`).join('')}</div>
+    <div class="grid2"><div><label class="f">Head's name</label><input class="inp" id="sH" value="${esc(s['Head Name']||'')}"></div>
+      <div><label class="f">Phone</label><input class="inp" id="sP" value="${esc(s.Phone||'')}"></div></div>
+    <label class="f">Active</label><select class="inp" id="sA"><option ${String(s.Active).toLowerCase()!=='no'?'selected':''}>Yes</option><option ${String(s.Active).toLowerCase()==='no'?'selected':''}>No</option></select>
+    <div class="err" id="serr"></div>
+    <div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="sb">Save</button></div></form>`);
+  $('#sf').onsubmit=async e=>{
+    e.preventDefault(); $('#sb').disabled=true;
+    try{
+      const r=await api('saveSchool',{school:{originalEmis:emis||'','EMIS Code':$('#sE').value,'School Name':$('#sN').value,Circuit:$('#sC').value,Level:$$('[data-sl]:checked').map(x=>x.value).join('/'),'Head Name':$('#sH').value,Phone:$('#sP').value,Active:$('#sA').value}});
+      await loadStaff(true);
+      if(r&&r.tempPassword) showTemp($('#sN')?.value||'School', $('#sE')?.value, r.tempPassword); else { closeModal(); toast('School saved.'); }
+    }catch(err){ $('#serr').textContent=err.message; $('#sb').disabled=false; }
+  };
+}
+function showTemp(name, login, pw){
+  openModal(`<h3>Login details</h3><p class="muted">Give these to <b>${esc(name)}</b>. They will be asked to set their own password when they first sign in.</p>
+    <div class="small muted">Login: <b>${esc(login)}</b></div><div class="temp">${esc(pw)}</div>
+    <div class="modal-actions"><button class="btn" onclick="navigator.clipboard.writeText('Portal login\\nLogin: ${esc(login)}\\nTemporary password: ${esc(pw)}').then(()=>toast('Copied.'))">Copy</button><button class="btn primary" onclick="closeModal()">Done</button></div>`);
+}
+function resetPw(kind, id, name){
+  openModal(`<h3>Reset password?</h3><p class="muted">A new temporary password will be created for <b>${esc(name)}</b>. Their old password will stop working.</p>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="rpb">Reset</button></div>`);
+  $('#rpb').onclick=async()=>{ $('#rpb').disabled=true; try{ const r=await api('resetPassword',{kind,id}); showTemp(name,id,r.tempPassword); }catch(e){ closeModal(); toast(e.message,true); } };
+}
+
+/* ---- Staff accounts ---- */
+function vUsers(){
+  const list=S.data.users||[];
+  $('#view').innerHTML=`
+    <div class="page-h"><div><h2>Staff accounts</h2><p>Directorate officers who can view and review submissions.</p></div><button class="btn primary" onclick="userModal()">＋ Add staff</button></div>
+    <div class="card"><div class="tbl-wrap"><table class="t"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Circuit</th><th>Last login</th><th>Active</th><th></th></tr></thead><tbody>
+      ${list.map(u=>`<tr><td><b>${esc(u['Full Name'])}</b></td><td>${esc(u.Email)}</td><td>${esc(ROLE_LABEL[u.Role]||u.Role)}</td><td>${esc(u.Circuit||'—')}</td>
+        <td class="small">${u['Last Login']?fmtDT(u['Last Login']):'<span class="muted">never</span>'}</td><td>${pill(String(u.Active).toLowerCase()==='no'?'No':'Yes')}</td>
+        <td><div class="fact"><button class="btn sm" onclick="userModal('${esc(u.Email)}')">Edit</button><button class="btn sm" onclick="resetPw('staff','${esc(u.Email)}','${esc(u['Full Name']).replace(/'/g,'')}')">Reset password</button></div></td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card" style="margin-top:18px"><div class="card-b small muted"><b>What each role can do:</b><br>
+      <b>Administrator</b> — everything, including staff accounts. · <b>EMIS Officer</b> — create requests, manage schools, review files. ·
+      <b>Circuit Supervisor</b> — see and review files from schools in their circuit only. · <b>Director / Management</b> — view everything, read-only.</div></div>`;
+}
+function userModal(email){
+  const u=email?S.data.users.find(x=>x.Email===email):{Role:'EMIS_OFFICER',Active:'Yes'};
+  openModal(`<h3>${email?'Edit staff account':'Add staff account'}</h3><form id="uf">
+    <label class="f">Full name</label><input class="inp" id="uN" value="${esc(u['Full Name']||'')}" required>
+    <label class="f">Email</label><input class="inp" type="email" id="uE" value="${esc(u.Email||'')}" required>
+    <div class="grid2"><div><label class="f">Role</label><select class="inp" id="uR">${Object.keys(ROLE_LABEL).filter(k=>k!=='SCHOOL').map(k=>`<option value="${k}" ${u.Role===k?'selected':''}>${ROLE_LABEL[k]}</option>`).join('')}</select></div>
+      <div><label class="f">Circuit <span class="muted small">(supervisors)</span></label><input class="inp" id="uC" list="circs2" value="${esc(u.Circuit||'')}"><datalist id="circs2">${circuits().map(c=>`<option>${esc(c)}</option>`).join('')}</datalist></div></div>
+    <div class="grid2"><div><label class="f">Phone</label><input class="inp" id="uP" value="${esc(u.Phone||'')}"></div>
+      <div><label class="f">Active</label><select class="inp" id="uA"><option ${String(u.Active).toLowerCase()!=='no'?'selected':''}>Yes</option><option ${String(u.Active).toLowerCase()==='no'?'selected':''}>No</option></select></div></div>
+    <div class="err" id="uerr"></div>
+    <div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="ub">Save</button></div></form>`);
+  $('#uf').onsubmit=async e=>{
+    e.preventDefault(); $('#ub').disabled=true;
+    const name=$('#uN').value, mail=$('#uE').value;
+    try{ const r=await api('saveUser',{user:{originalEmail:email||'','Full Name':name,Email:mail,Role:$('#uR').value,Circuit:$('#uC').value,Phone:$('#uP').value,Active:$('#uA').value}});
+      await loadStaff(true); if(r&&r.tempPassword) showTemp(name, mail.toLowerCase(), r.tempPassword); else { closeModal(); toast('Account saved.'); } }
+    catch(err){ $('#uerr').textContent=err.message; $('#ub').disabled=false; }
+  };
+}
+
+/* =====================================================================
+   DEMO BACKEND — runs only when CONFIG.API_URL is empty.
+   Mirrors the Apps Script actions using in-memory sample data.
+   ===================================================================== */
+const Mock = (() => {
+  const day=864e5, now=Date.now(), iso=t=>new Date(t).toISOString(), ymd=t=>iso(t).slice(0,10);
+  const schools=[
+    ['60101001','Agogo Presby Basic School','KG/Primary/JHS','Agogo East','Mrs. Akosua Mensah','0244000101'],
+    ['60101002','Agogo M/A Basic School','KG/Primary/JHS','Agogo East','Mr. Kwame Boateng','0244000102'],
+    ['60101003','St. Mary\'s R/C Primary','KG/Primary','Agogo East','Mrs. Grace Owusu','0244000103'],
+    ['60102001','Agogo SDA JHS','JHS','Agogo West','Mr. Yaw Asante','0244000104'],
+    ['60102002','Agogo Methodist Basic','KG/Primary/JHS','Agogo West','Mrs. Abena Sarpong','0244000105'],
+    ['60102003','Hwidiem D/A Basic School','KG/Primary/JHS','Hwidiem','Mr. Kofi Adjei','0244000106'],
+    ['60102004','Hwidiem Islamic Primary','KG/Primary','Hwidiem','Mr. Ibrahim Musah','0244000107'],
+    ['60103001','Juansa D/A Basic School','KG/Primary/JHS','Juansa','Mrs. Efua Darko','0244000108'],
+    ['60103002','Juansa Anglican Primary','KG/Primary','Juansa','Mr. Samuel Ofori','0244000109'],
+    ['60104001','Agogo State College','SHS','Agogo West','Mr. Daniel Amoako','0244000110']
+  ].map(r=>({'EMIS Code':r[0],'School Name':r[1],Level:r[2],Circuit:r[3],'Head Name':r[4],Phone:r[5],Active:'Yes',pw:'demo123','Last Login':''}));
+  const users=[
+    ['admin@demo.gh','EMIS Admin (you)','ADMIN',''],['emis@demo.gh','Ama Twumasi','EMIS_OFFICER',''],
+    ['cs.agogo@demo.gh','Kwabena Nyarko','CIRCUIT_SUPERVISOR','Agogo East'],['director@demo.gh','Municipal Director','DIRECTOR','']
+  ].map(u=>({Email:u[0],'Full Name':u[1],Role:u[2],Circuit:u[3],Active:'Yes',pw:'demo123','Last Login':''}));
+  const tasks=[
+    {'Task ID':'T2609011001',Title:'Term 1 School List Workbook',Description:'Upload the completed Term 1 school list Excel workbook (all sheets filled).',Levels:'All','Allowed Types':'excel','Max Files':2,'Due Date':ymd(now+4*day),Status:'Open','Created At':iso(now-20*day)},
+    {'Task ID':'T2609151002',Title:'Term 1 SBA Assessment Records',Description:'Scan or photograph the signed SBA summary sheets for each class and upload as PDF or photos.',Levels:'Primary,JHS','Allowed Types':'pdf,image','Max Files':10,'Due Date':ymd(now+12*day),Status:'Open','Created At':iso(now-10*day)},
+    {'Task ID':'T2609201003',Title:'Photos of Classroom Infrastructure',Description:'Upload clear photos of classrooms needing repair (roof, floor, furniture).',Levels:'All','Allowed Types':'image','Max Files':0,'Due Date':ymd(now-2*day),Status:'Open','Created At':iso(now-8*day)},
+    {'Task ID':'T2608011000',Title:'2025/26 Annual School Census',Description:'Signed census form (PDF).',Levels:'All','Allowed Types':'pdf','Max Files':1,'Due Date':ymd(now-40*day),Status:'Closed','Created At':iso(now-70*day)}
+  ];
+  const subs=[]; const files={};
+  const tiny='UEsDBAoAAAAAAA=='; let seq=100;
+  const add=(emis,tid,name,kb,status,ago,remark,reviewer)=>{ const s=schools.find(x=>x['EMIS Code']===emis), t=tasks.find(x=>x['Task ID']===tid); const id='S'+(seq++);
+    subs.push({'Submission ID':id,'Task ID':tid,'Task Title':t.Title,'EMIS Code':emis,'School Name':s['School Name'],Circuit:s.Circuit,Level:s.Level,'File Name':name,'File Type':extOf(name),'Size KB':kb,Note:'','Submitted By':s['Head Name'],'Submitted At':iso(now-ago*day),Status:status,Reviewer:reviewer||'','Reviewed At':reviewer?iso(now-ago*day+36e5):'',Remark:remark||''});
+    files[id]={data:btoa('Demo file: '+name),mime:'text/plain'}; };
+  add('60101002','T2609011001','School_List_Term1.xlsx',84,'Accepted',3,'','Ama Twumasi');
+  add('60102001','T2609011001','SchoolList_AgogoSDA.xlsx',77,'Submitted',1);
+  add('60103001','T2609011001','Juansa_DA_list.xlsx',91,'Rejected',2,'JHS 2 enrolment is blank. Please complete and re-upload.','Ama Twumasi');
+  add('60102002','T2609011001','Methodist_T1.xlsx',66,'Submitted',0.3);
+  add('60101001','T2609151002','SBA_P1-P3.pdf',1240,'Submitted',0.5);
+  add('60101002','T2609151002','SBA_JHS.jpg',2210,'Submitted',1.2);
+  add('60102003','T2609201003','roof_block_B.jpg',3120,'Accepted',5,'Noted for repairs list.','Kwabena Nyarko');
+  add('60102003','T2609201003','furniture.jpg',2804,'Accepted',5,'','Kwabena Nyarko');
+  tasks[3] && schools.slice(0,8).forEach(s=>add(s['EMIS Code'],'T2608011000','Census_signed.pdf',540,'Accepted',45,'','Ama Twumasi'));
+  const sess={}; const cp=o=>JSON.parse(JSON.stringify(o));
+  const strip=o=>{ const c=cp(o); delete c.pw; delete c.done; return c; };
+  const need=(req,roles)=>{ const s=sess[req.token]; if(!s) throw new Error('SESSION_EXPIRED'); if(roles&&!roles.includes(s.role)) throw new Error('You do not have permission for this action.'); return s; };
+  const scope=(s,r)=> s.role==='SCHOOL'?r['EMIS Code']===s.emis : s.role==='CIRCUIT_SUPERVISOR'?r.Circuit===s.circuit : true;
+  const tmp=()=>Math.random().toString(36).slice(2,10).toUpperCase();
+  const A={
+    publicTasks:()=>tasks.filter(t=>t.Status==='Open').map(t=>({'Task ID':t['Task ID'],Title:t.Title,'Due Date':t['Due Date'],Levels:t.Levels,'Allowed Types':t['Allowed Types']})),
+    login:req=>{ const id=String(req.id||'').trim().toLowerCase();
+      const rec= req.kind==='school'?schools.find(s=>s['EMIS Code'].toLowerCase()===id):users.find(u=>u.Email===id);
+      if(!rec||rec.pw!==req.password||rec.Active==='No') throw new Error('Incorrect login details, or the account is inactive.');
+      rec['Last Login']=iso(Date.now()); const token='demo'+Math.random().toString(36).slice(2);
+      sess[token]= req.kind==='school'?{kind:'school',role:'SCHOOL',id:rec['EMIS Code'],emis:rec['EMIS Code'],name:rec['School Name'],circuit:rec.Circuit,level:rec.Level,head:rec['Head Name']}
+        :{kind:'staff',role:rec.Role,id:rec.Email,name:rec['Full Name'],circuit:rec.Circuit};
+      return {token,user:sess[token],mustChange:!!rec.must}; },
+    logout:req=>{ delete sess[req.token]; return true; },
+    changePassword:req=>{ const s=need(req); const rec=s.kind==='school'?schools.find(x=>x['EMIS Code']===s.id):users.find(x=>x.Email===s.id);
+      if(rec.pw!==req.oldPassword) throw new Error('Your current password is not correct.'); if(String(req.newPassword).length<6) throw new Error('New password must be at least 6 characters.');
+      rec.pw=req.newPassword; rec.must=false; return true; },
+    schoolHome:req=>{ const s=need(req,['SCHOOL']); const mine=subs.filter(x=>x['EMIS Code']===s.emis);
+      return {tasks:cp(tasks.filter(t=>levelsMatch(t.Levels,s.level)&&(t.Status==='Open'||mine.some(m=>m['Task ID']===t['Task ID'])))),submissions:cp(mine)}; },
+    upload:req=>{ const s=need(req,['SCHOOL']); const t=tasks.find(x=>x['Task ID']===req.taskId);
+      if(!t||t.Status!=='Open') throw new Error('This submission is closed.');
+      const ex=allowedExts(t['Allowed Types']), e=extOf(req.fileName); if(ex&&!ex.includes(e)) throw new Error('File type .'+e+' is not accepted here.');
+      const n=subs.filter(x=>x['Task ID']===t['Task ID']&&x['EMIS Code']===s.emis).length; if(t['Max Files']&&n>=t['Max Files']) throw new Error('File limit reached for this submission.');
+      const id='S'+(seq++); subs.push({'Submission ID':id,'Task ID':t['Task ID'],'Task Title':t.Title,'EMIS Code':s.emis,'School Name':s.name,Circuit:s.circuit,Level:s.level,'File Name':req.fileName,'File Type':e,'Size KB':Math.round(req.data.length*0.75/1024*10)/10,Note:req.note||'','Submitted By':s.head,'Submitted At':iso(Date.now()),Status:'Submitted',Reviewer:'','Reviewed At':'',Remark:''});
+      files[id]={data:req.data,mime:req.mimeType}; return true; },
+    deleteMySubmission:req=>{ const s=need(req,['SCHOOL']); const i=subs.findIndex(x=>x['Submission ID']===req.id&&x['EMIS Code']===s.emis);
+      if(i<0) throw new Error('File not found.'); if(subs[i].Status==='Accepted') throw new Error('Accepted files cannot be deleted.'); subs.splice(i,1); return true; },
+    download:req=>{ const s=need(req); const r=subs.find(x=>x['Submission ID']===req.id); if(!r||!scope(s,r)) throw new Error('File not found.');
+      const f=files[r['Submission ID']]; return {name:r['File Name'],mime:f.mime,data:f.data}; },
+    staffData:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER','CIRCUIT_SUPERVISOR','DIRECTOR']);
+      const o={tasks:cp(tasks),schools:schools.filter(x=>scope(s,x)).map(strip),submissions:cp(subs.filter(x=>scope(s,x)))}; if(s.role==='ADMIN') o.users=users.map(strip); return o; },
+    review:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER','CIRCUIT_SUPERVISOR']); const r=subs.find(x=>x['Submission ID']===req.id); if(!r||!scope(s,r)) throw new Error('File not found.');
+      Object.assign(r,{Status:req.status,Remark:req.remark||'',Reviewer:s.name,'Reviewed At':iso(Date.now())}); return true; },
+    saveTask:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER']); const t=req.task; if(!String(t.Title||'').trim()) throw new Error('Give the request a title.');
+      const data={Title:t.Title.trim(),Description:t.Description||'',Levels:t.Levels||'All','Allowed Types':t['Allowed Types']||'any','Max Files':Number(t['Max Files'])||0,'Due Date':t['Due Date']||'',Status:t.Status};
+      const ex=tasks.find(x=>x['Task ID']===t['Task ID']); if(ex){ Object.assign(ex,data); subs.forEach(x=>{ if(x['Task ID']===ex['Task ID']) x['Task Title']=data.Title; }); return ex['Task ID']; }
+      const id='T'+Date.now().toString().slice(-8); tasks.push(Object.assign({'Task ID':id,'Created By':s.name,'Created At':iso(Date.now())},data)); return id; },
+    taskFolder:()=>({url:'#'}),
+    saveSchool:req=>{ need(req,['ADMIN','EMIS_OFFICER']); const x=req.school; if(!x['EMIS Code']||!x['School Name']) throw new Error('EMIS code and school name are required.');
+      const clash=schools.find(s=>s['EMIS Code']===x['EMIS Code']);
+      if(x.originalEmis){ const r=schools.find(s=>s['EMIS Code']===x.originalEmis); if(clash&&clash!==r) throw new Error('Another school already uses that EMIS code.'); ['EMIS Code','School Name','Level','Circuit','Head Name','Phone','Active'].forEach(k=>r[k]=x[k]); return {}; }
+      if(clash) throw new Error('EMIS code already exists.'); const pw=tmp(); schools.push(Object.assign({pw,must:true,'Last Login':''},x)); return {tempPassword:pw}; },
+    saveUser:req=>{ need(req,['ADMIN']); const x=req.user; x.Email=String(x.Email).toLowerCase(); if(!x.Email||!x['Full Name']) throw new Error('Email and full name are required.');
+      if(x.Role==='CIRCUIT_SUPERVISOR'&&!x.Circuit) throw new Error('Circuit supervisors need a circuit.');
+      if(x.originalEmail){ const r=users.find(u=>u.Email===x.originalEmail); ['Email','Full Name','Role','Circuit','Phone','Active'].forEach(k=>r[k]=x[k]); return {}; }
+      if(users.some(u=>u.Email===x.Email)) throw new Error('That email is already used.'); const pw=tmp(); users.push(Object.assign({pw,must:true},x)); return {tempPassword:pw}; },
+    resetPassword:req=>{ need(req,['ADMIN','EMIS_OFFICER']); const r=req.kind==='school'?schools.find(s=>s['EMIS Code']===req.id):users.find(u=>u.Email===req.id); const pw=tmp(); r.pw=pw; r.must=true; return {tempPassword:pw}; }
+  };
+  return { call: body => new Promise(res => setTimeout(() => {
+    try{ const fn=A[body.action]; if(!fn) throw new Error('Unknown action.'); res({ok:true,data:fn(body)}); }
+    catch(e){ res({ok:false,error:e.message}); } }, 220)) };
+})();
+
+/* ------------------------------ start ------------------------------ */
+(function start(){
+  const saved = DEMO ? null : load('fp_session');   // demo data resets on reload, so demo sessions do too
+  if(saved && saved.token){ S.token=saved.token; S.user=saved.user; S.mustChange=saved.mustChange; boot(); }
+  else renderLogin();
+})();
+</script>
+</body>
+</html>
