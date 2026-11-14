@@ -548,6 +548,9 @@ table.rt.sm{margin-top:6px}.rt-tot td{background:#faf8f3;font-weight:700}
 .wa-c{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.wa-c button{border:1px solid #cfd8e3;background:#fff;border-radius:999px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer}.wa-c button.on{background:var(--navy2);color:#fff;border-color:var(--navy2)}
 .vw-grid td{white-space:nowrap;min-width:46px;max-width:260px;overflow:hidden;text-overflow:ellipsis}.vw-grid th{position:sticky;top:0;background:#faf8f3;z-index:1}.vw-grid tbody th{position:sticky;left:0;top:auto;color:var(--muted);font-weight:500}
 .vw-grid td.vw-f{background:#f1f1ee;color:#555}.vw-grid td.vw-e{background:#fff4c2;font-weight:700}.vw-grid td[contenteditable]{outline:1px dashed #cfd8d3;cursor:text}.vw-grid td[contenteditable]:focus{outline:2px solid var(--green);background:#fff}
+.lnk{margin:6px 0 10px}.lnk-t{background:none;border:0;color:var(--green);font:inherit;font-size:13px;cursor:pointer;padding:2px 0;text-decoration:underline}.lnk-b{margin-top:6px;padding:10px;border:1px dashed var(--line);border-radius:10px;background:#fbfaf6}
+.tp-phw{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}.tp-ph{position:relative;width:110px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f4f2ec}.tp-ph img{width:100%;height:100%;object-fit:cover}
+.tp-phx{position:absolute;top:3px;right:3px;border:0;border-radius:50%;width:22px;height:22px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:12px}.tp-phs{position:absolute;left:3px;bottom:3px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px}.tp-phb{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-basis:100%}
 </style>
 </head>
 <body>
@@ -1167,6 +1170,7 @@ async function tplSpec(taskId){
   if(!window.XLSX) throw new Error('The Excel tools did not load. Check your internet connection and refresh.');
   const f=await api('publicTemplate',{taskId}); if(!/\.(xlsx|xlsm)$/i.test(f.name||'')) throw new Error('The template attached to this request is not an Excel (.xlsx) file.');
   const spec=await tplParse(f.data, await JSZip.loadAsync(f.data,{base64:true})); spec.b64=f.data; spec.fileName=f.name;
+  spec.inputs.forEach(it=>{ if(TPL_PHOTO_RE.test((it.rowLabel||'')+' '+it.label+' '+(it.group||''))) it.type='photo'; }); spec.photos=spec.inputs.filter(it=>it.type==='photo');
   return TPL.cache[taskId]=spec;
 }
 async function tplParse(b64, zip){
@@ -1260,7 +1264,7 @@ function tplKnown(it, D){
   const L=tplNorm(it.label+' '+(it.group||'')), has=(...w)=>w.some(x=>L.includes(x)), S0=D.school||{}, O=D.office||{};
   if(has('mmdeo')) return '';
   if(has('emis')&&!has('officer','staff','data officer')) return {v:S0['EMIS Code'],lock:true};
-  if(has('name of school','school name','name of second cycle','name of the school')) return {v:S0['School Name'],lock:true};
+  if(has('name of school','school name','name of second cycle','name of the school')||/name of (the )?[a-z0-9\/ ]{1,20} school\b/.test(L)) return {v:S0['School Name'],lock:true};
   if(/^(region)\b/.test(L)||has('name of region')) return {v:tplPick(it,O.Region||'Ashanti Region')||O.Region||'Ashanti Region',lock:true};
   if((has('mmda','district','municipal'))&&!has('home','other')){ const opt=it.type==='select'?(it.options||[]).find(x=>/asante akim north/i.test(x)):''; return {v:opt||(it.type==='select'?'':LP_MMDA),lock:!!opt||it.type!=='select'}; }
   if(has('academic year')) return {v:tplPick(it,O['Academic Year']||D.year)||O['Academic Year']||D.year};
@@ -1304,6 +1308,80 @@ function tplCheck(spec, A){ const E=[];
     if(it.type==='select'&&it.options&&!it.options.includes(v)) E.push([it.ref,`${it.label}: choose from the list.`]); });
   return E; }
 const tplEmpty = (spec, A) => spec.inputs.filter(it=>String(A[it.ref]??'').trim()==='');
+/* ---- picture boxes (e.g. "PICTURE OF CLASSROOMS AND ELECTRICITY") ----
+ * The head takes or chooses a photo; the phone shrinks it to about 640 px (≈30–60 KB) before it is sent.
+ * Photos are kept in Drive (folder "Request photos"); the answer holds their IDs ("photo:ID1,ID2").
+ * Downloads put the pictures inside the Excel cells. */
+const TPL_PHOTO_RE = /\b(picture|pictures|photo|photos|photograph|photographs|image|images|snapshot)\b/i;
+const TPL_PH_MAX = 3, TPL_PH_PX = 640;
+const tplPhIds = v => /^photo:/.test(String(v||''))?String(v).slice(6).split(',').map(x=>x.trim()).filter(x=>x&&x!=='new'):[];
+const tplTextVal = (it, v) => it&&it.type==='photo'?(tplPhIds(v).length?`📷 ${tplPhIds(v).length} photo${tplPhIds(v).length>1?'s':''}`:''):(v??'');
+function tplPhList(ref){ const st=TPL.st; st.ph=st.ph||{}; if(!st.ph[ref]) st.ph[ref]=tplPhIds(st.A&&st.A[ref]).map(id=>({id})); return st.ph[ref]; }
+function tplPhSync(ref){ const L=tplPhList(ref); TPL.st.A[ref]=L.length?'photo:'+L.map(p=>p.id||'new').join(','):''; }
+function tplPhotoHTML(it, ro){ const L=tplPhList(it.ref);
+  const th=L.map((p,k)=>`<div class="tp-ph">${p.d?`<img src="${p.d}" alt="photo ${k+1}">`:`<img data-phid="${esc(p.id)}" alt="photo ${k+1}">`}${ro?'':`<button type="button" class="tp-phx" data-phrm="${it.ref}" data-k="${k}" title="Remove">✕</button>`}${p.kb?`<span class="tp-phs">${p.kb} KB</span>`:''}</div>`).join('');
+  return `<div class="tp-phw" data-tp-ph="${it.ref}">${th||(ro?'<span class="muted small">No photo</span>':'')}
+    ${ro||L.length>=TPL_PH_MAX?'':`<div class="tp-phb"><label class="btn sm primary">📷 Take photo<input type="file" accept="image/*" capture="environment" class="hidden" data-phadd="${it.ref}"></label><label class="btn sm">🖼 From gallery<input type="file" accept="image/*" class="hidden" data-phadd="${it.ref}" multiple></label><span class="small muted">up to ${TPL_PH_MAX} · made small automatically</span></div>`}</div>`; }
+// shrink a photo on the phone: longest side 640 px, JPEG, ~60 KB at most
+async function tplShrink(file){
+  const url=URL.createObjectURL(file); const img=await new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=()=>no(new Error('This file is not a picture the phone can read. Take the photo again.')); i.src=url; });
+  const k=Math.min(1, TPL_PH_PX/Math.max(img.naturalWidth,img.naturalHeight)), w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
+  const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+  let q=0.55, d=c.toDataURL('image/jpeg',q); while(d.length*0.75>60000&&q>0.25){ q-=0.1; d=c.toDataURL('image/jpeg',q); }
+  return {d, w, h, kb:Math.round(d.length*0.75/1024)}; }
+function tplPhWire(el){
+  $$('[data-phadd]',el).forEach(inp=>inp.onchange=async()=>{ const ref=inp.dataset.phadd, L=tplPhList(ref), files=[...inp.files].slice(0,TPL_PH_MAX-L.length); inp.value='';
+    for(const f of files){ try{ L.push(await tplShrink(f)); }catch(e){ toast(e.message,true); } } tplPhSync(ref); tplSaveDraft(); drawTpl(); });
+  $$('[data-phrm]',el).forEach(b=>b.onclick=()=>{ const L=tplPhList(b.dataset.phrm); L.splice(+b.dataset.k,1); tplPhSync(b.dataset.phrm); tplSaveDraft(); drawTpl(); });
+  tplPhLoad(el); }
+// show photos already sent (fetched from Drive)
+TPL.phc=TPL.phc||{};
+async function tplPhGet(id){ if(TPL.phc[id]) return TPL.phc[id]; const r=await api('tplPhotoGet',{id, ticket:(TPL.st&&TPL.st.ticket)||undefined}); return TPL.phc[id]='data:'+(r.mime||'image/jpeg')+';base64,'+r.data; }
+function tplPhLoad(el){ $$('img[data-phid]',el||document).forEach(async im=>{ if(im.src) return; try{ im.src=await tplPhGet(im.dataset.phid); }catch(e){ im.alt='photo (could not load)'; } }); }
+// send new photos before the answers
+async function tplPhUpload(st, btn){ const out={};
+  for(const it of (st.spec.photos||[])){ const L=tplPhList(it.ref); let k=0;
+    for(const p of L){ k++; if(p.id) continue; if(btn) btn.innerHTML=`<span class="spin"></span> Sending photo ${k} of ${L.length}…`;
+      const r=await api('tplPhoto',{ticket:st.ticket||undefined, taskId:st.taskId, emis:st.D.school['EMIS Code'], ref:it.ref, n:k, data:p.d.split(',')[1]}); p.id=r.id; }
+    tplPhSync(it.ref); }
+  return out; }
+// pictures inside the downloaded Excel: pics = [{row, col (0-based), imgs:[{b64,w,h}]}]
+async function tplAddPictures(zip, sheetPath, pics){
+  pics=pics.filter(p=>p.imgs.length); if(!pics.length) return;
+  let sx=await zip.file(sheetPath).async('string'); if(/<drawing\b/.test(sx)) return; // the sheet already has drawings: leave it
+  const relsPath=sheetPath.replace(/([^\/]+)$/,'_rels/$1.rels'); let rels=zip.file(relsPath)?await zip.file(relsPath).async('string'):'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  let dn=1; while(zip.file(`xl/drawings/drawing${dn}.xml`)) dn++; let mn=1; const media=()=>{ while(zip.file(`xl/media/portal_photo${mn}.jpeg`)) mn++; return mn; };
+  let rid=1; while(rels.includes(`Id="rId${rid}"`)) rid++;
+  rels=rels.replace('</Relationships>',`<Relationship Id="rId${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${dn}.xml"/></Relationships>`); zip.file(relsPath, rels);
+  // column width in px (default 64)
+  const colPx=c=>{ const m=[...sx.matchAll(/<col\b[^>]*min="(\d+)"[^>]*max="(\d+)"[^>]*width="([\d.]+)"/g)].find(x=>+x[1]<=c+1&&+x[2]>=c+1); return m?Math.round(+m[3]*7+5):64; };
+  const EMU=9525, H=90; let anchors='', drels='', id=1;
+  for(const p of pics){ const cw=colPx(p.col), n=p.imgs.length, slot=Math.max(30,Math.floor((Math.max(cw,n*70)-4*(n+1))/n)); let off=4;
+    p.imgs.forEach(im=>{ const k=Math.min(H/im.h, slot/im.w), w=Math.round(im.w*k), h=Math.round(im.h*k), m=media(); zip.file(`xl/media/portal_photo${m}.jpeg`, im.b64, {base64:true});
+      drels+=`<Relationship Id="rId${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/portal_photo${m}.jpeg"/>`;
+      anchors+=`<xdr:oneCellAnchor><xdr:from><xdr:col>${p.col}</xdr:col><xdr:colOff>${off*EMU}</xdr:colOff><xdr:row>${p.row-1}</xdr:row><xdr:rowOff>${4*EMU}</xdr:rowOff></xdr:from><xdr:ext cx="${w*EMU}" cy="${h*EMU}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id+1}" name="Photo ${id}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${id}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${w*EMU}" cy="${h*EMU}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+      off+=w+4; id++; });
+    // make the row tall enough (~98 px) and the column wide enough for the photos
+    const need=off; if(need>cw){ const wch=Math.ceil((need-5)/7), C=p.col+1, cover=[...sx.matchAll(/<col\b[^>]*\/>/g)].map(x=>x[0]).find(c=>+(c.match(/min="(\d+)"/)||[])[1]<=C&&+(c.match(/max="(\d+)"/)||[])[1]>=C);
+      if(cover){ if(new RegExp(`min="${C}"[^>]*max="${C}"`).test(cover)) sx=sx.replace(cover,cover.replace(/\swidth="[^"]*"/,` width="${wch}"`).replace(/\scustomWidth="[^"]*"/,'').replace('/>',' customWidth="1"/>')); }
+      else if(/<cols>/.test(sx)) sx=sx.replace('</cols>',`<col min="${C}" max="${C}" width="${wch}" customWidth="1"/></cols>`); else sx=sx.replace('<sheetData',`<cols><col min="${C}" max="${C}" width="${wch}" customWidth="1"/></cols><sheetData`); }
+    sx=sx.replace(new RegExp(`<row\\b([^>]*\\br="${p.row}"[^>]*?)(/?)>`),(m,at,sl)=>`<row${at.replace(/\s*ht="[^"]*"/,'').replace(/\s*customHeight="[^"]*"/,'')} ht="74" customHeight="1"${sl}>`); }
+  const tag=`<drawing r:id="rId${rid}"/>`, after=/<(legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b/;
+  const mm=sx.match(after); sx=mm?sx.slice(0,mm.index)+tag+sx.slice(mm.index):sx.replace('</worksheet>',tag+'</worksheet>');
+  if(!/xmlns:r=/.test(sx.slice(0,600))) sx=sx.replace('<worksheet','<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"');
+  zip.file(sheetPath, sx);
+  zip.file(`xl/drawings/drawing${dn}.xml`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${anchors}</xdr:wsDr>`);
+  zip.file(`xl/drawings/_rels/drawing${dn}.xml.rels`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${drels}</Relationships>`);
+  let ct=await zip.file('[Content_Types].xml').async('string');
+  if(!/Extension="jpeg"/i.test(ct)) ct=ct.replace('<Default ','<Default Extension="jpeg" ContentType="image/jpeg"/><Default ');
+  ct=ct.replace('</Types>',`<Override PartName="/xl/drawings/drawing${dn}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>`);
+  zip.file('[Content_Types].xml', ct); }
+async function tplPicsFor(spec, A, row){ const out=[];
+  for(const it of (spec.photos||[])){ const ids=tplPhIds(A[it.ref]), local=(TPL.st&&TPL.st.ph&&TPL.st.A===A&&TPL.st.ph[it.ref])||null, imgs=[];
+    const srcs=local?local.map(p=>p.d||null):ids.map(()=>null);
+    for(let k=0;k<Math.max(ids.length,srcs.length);k++){ try{ const d=srcs[k]||await tplPhGet(ids[k]); const im=await new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=d; }); imgs.push({b64:d.split(',')[1], w:im.naturalWidth, h:im.naturalHeight}); }catch(e){} }
+    if(imgs.length){ const d=XLSX.utils.decode_cell(it.ref); out.push({row:spec.shape==='list'?row:d.r+1, col:d.c, imgs}); } }
+  return out; }
 // ---- the head's form ----
 const TPL_STEPS=['Your school','Fill','Review','Receipt'];
 async function openTplForm(taskId, emis){
@@ -1314,16 +1392,18 @@ async function openTplForm(taskId, emis){
   drawTpl();
 }
 const tplDraftKey = () => `tpl_${TPL.st.taskId}_${(TPL.st.D&&TPL.st.D.school['EMIS Code'])||''}`;
-function tplSaveDraft(){ try{ localStorage.setItem(tplDraftKey(), JSON.stringify({at:Date.now(), A:TPL.st.A})); }catch(e){} }
+function tplSaveDraft(){ const ph={}; Object.entries(TPL.st.ph||{}).forEach(([r,L])=>ph[r]=L.map(p=>p.id?{id:p.id}:p));
+  try{ localStorage.setItem(tplDraftKey(), JSON.stringify({at:Date.now(), A:TPL.st.A, ph})); }catch(e){ try{ localStorage.setItem(tplDraftKey(), JSON.stringify({at:Date.now(), A:TPL.st.A})); }catch(x){} } }
 function tplBegin(D){
-  const st=TPL.st; st.D=D; const pf=tplPrefill(st.spec,D); st.lock=pf.lock; st.from=pf.from;
+  const st=TPL.st; st.D=D; st.ph={}; const pf=tplPrefill(st.spec,D); st.lock=pf.lock; st.from=pf.from;
   let draft=null; try{ draft=JSON.parse(localStorage.getItem(tplDraftKey())||'null'); }catch(e){}
   const subAt=D.submitted?new Date(D.submitted.at).getTime():0;
-  if(draft&&draft.at>subAt&&Object.keys(draft.A||{}).length){ st.A=Object.assign({},pf.A,draft.A); st.note=`Continuing the answers saved on this device on ${fmtDT(new Date(draft.at).toISOString())}.`; }
+  if(draft&&draft.at>subAt&&Object.keys(draft.A||{}).length){ st.A=Object.assign({},pf.A,draft.A); if(draft.ph) st.ph=draft.ph; st.note=`Continuing the answers saved on this device on ${fmtDT(new Date(draft.at).toISOString())}.`; }
   else if(D.answers){ st.A=Object.assign({},pf.A,D.answers); Object.keys(pf.lock).forEach(k=>{ st.A[k]=pf.A[k]; }); st.note=`Your school submitted this on ${fmtDT(D.submitted.at)} — your answers are filled in. Change what is needed and submit again.`; }
   else { st.A=pf.A; st.note=Object.keys(pf.A).length?'Boxes the portal already knows are filled in — check them.':''; }
   st.step=1; }
-function tplInput(it, A, ro){ const v=A[it.ref]??'', dis=ro||TPL.st.lock[it.ref]?'disabled':'', cls=`inp ${it.type==='number'||it.type==='digits'?'num':''}`;
+function tplInput(it, A, ro){ if(it.type==='photo') return tplPhotoHTML(it, ro);
+  const v=A[it.ref]??'', dis=ro||TPL.st.lock[it.ref]?'disabled':'', cls=`inp ${it.type==='number'||it.type==='digits'?'num':''}`;
   if(it.type==='select') return `<select class="${cls}" data-tp="${it.ref}" ${dis}><option value="">— choose —</option>${(it.options||[]).map(o=>`<option ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
   return `<input class="${cls}" data-tp="${it.ref}" value="${esc(v)}" ${it.type==='number'||it.type==='digits'?'inputmode="numeric"':it.type==='tel'?'inputmode="tel"':''} ${dis}>`; }
 function tplFormHTML(spec, A, ro){
@@ -1356,14 +1436,14 @@ function drawTpl(){
     body=`<h3>${esc(t.Title||st.spec.title||'Request')}</h3>
       <div class="banner ok" style="margin-bottom:10px">🏫 <b>${esc(sc['School Name'])}</b> · EMIS ${esc(sc['EMIS Code'])} · ${esc(canonCircuit(sc.Circuit))} Circuit</div>
       ${st.note?`<div class="banner" style="margin-bottom:10px">${esc(st.note)} <a href="#" id="tpReset">Start again</a></div>`:''}
-      <div class="rt-xl"><div><b>📊 Filled the Excel template already?</b><div class="small muted">Upload it — the portal reads your answers; you only check them and submit.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="tpDl">⬇ Template</button><label class="btn primary rt-xlb">⬆ Upload filled template<input type="file" id="tpIn" accept=".xlsx,.xlsm,.xls" class="hidden"></label></div></div><div class="err" id="tpXlErr"></div>
+      <div class="rt-xl"><div><b>📊 Filled the Excel template already?</b><div class="small muted">Upload it — the portal reads your answers; you only check them and submit.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="tpDl">⬇ Template</button><label class="btn primary rt-xlb">⬆ Upload filled template<input type="file" id="tpIn" accept=".xlsx,.xlsm,.xls" class="hidden"></label></div></div>${lnkBox('#tpIn')}<div class="err" id="tpXlErr"></div>
       ${tplFormHTML(st.spec,st.A,false)}
       <div class="small muted" style="margin-top:8px">${E} box${E===1?'':'es'} still empty · saved on this device as you type</div>
       <div class="err" id="tpErr"></div><div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Save &amp; close</button><button type="button" class="btn primary big" id="tpNext">Review ›</button></div>`; }
   else if(st.step===2){ const E=tplCheck(st.spec,st.A), empty=tplEmpty(st.spec,st.A);
     body=`<h3>Review before you submit</h3>${st.route==='excel'?`<div class="banner ok" style="margin-bottom:10px">📊 Answers read from your Excel file.</div>`:''}
       ${E.length?`<div class="banner bad" style="margin-bottom:10px">Please correct ${E.length} item(s): ${E.slice(0,6).map(x=>esc(x[1])).join(' · ')}</div>`:''}
-      ${empty.length?`<div class="banner" style="margin-bottom:10px">⚠ ${empty.length} box${empty.length>1?'es are':' is'} empty${empty.length<=8?': '+empty.map(i=>esc(i.label)).join(' · '):''}. If they apply to your school, go back and fill them.</div>`:''}
+      ${empty.length?`<div class="banner" style="margin-bottom:10px">⚠ ${empty.length} box${empty.length>1?'es are':' is'} empty${empty.length<=8?': '+empty.map(i=>esc(i.label)).join(' · '):''}. If they apply to your school, go back and fill them.${empty.some(i=>i.type==='photo')?' <b>Tap ‹ Edit to add the photo.</b>':''}</div>`:''}
       ${tplFormHTML(st.spec,st.A,true)}
       <label class="checks" style="margin-top:12px"><input type="checkbox" id="tpOk"> I confirm that these figures agree with my school's records.</label><div class="err" id="tpErr"></div>
       <div class="modal-actions"><button type="button" class="btn" id="tpBack">‹ Edit</button><button type="button" class="btn primary big" id="tpSub" ${E.length?'disabled':''}>Submit</button></div>`; }
@@ -1379,10 +1459,11 @@ function drawTpl(){
     $$('[data-tpt]',el).forEach(b=>b.textContent=cs.filter(x=>x.cl===b.dataset.tpt).reduce((a,x)=>a+n(x),0)); $$('[data-tps]',el).forEach(b=>b.textContent=cs.filter(x=>x.sx===b.dataset.tps).reduce((a,x)=>a+n(x),0));
     const g=$('[data-tpg]',el); if(g) g.textContent=cs.reduce((a,x)=>a+n(x),0); };
   $$('[data-tp]',el).forEach(i=>{ i.oninput=i.onchange=()=>{ st.A[i.dataset.tp]=i.value; tplSaveDraft(); liveTot(); }; });
-  if($('#tpReset')) $('#tpReset').onclick=e=>{ e.preventDefault(); try{ localStorage.removeItem(tplDraftKey()); }catch(x){} const pf=tplPrefill(st.spec,st.D); st.A=pf.A; st.note=''; drawTpl(); };
+  if(st.spec&&(st.spec.photos||[]).length) tplPhWire(el);
+  if($('#tpReset')) $('#tpReset').onclick=e=>{ e.preventDefault(); try{ localStorage.removeItem(tplDraftKey()); }catch(x){} const pf=tplPrefill(st.spec,st.D); st.A=pf.A; st.ph={}; st.note=''; drawTpl(); };
   if($('#tpIn')) $('#tpIn').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; $('#tpXlErr').textContent='';
     try{ const A=tplFromWorkbook(st.spec, await xlRead(f), st.D.school['EMIS Code']); const pf=tplPrefill(st.spec,st.D);
-      st.A=Object.assign({},A); Object.keys(pf.lock).forEach(k=>{ st.A[k]=pf.A[k]; }); st.route='excel'; tplSaveDraft(); st.step=2; drawTpl(); $('#modalCard').scrollTop=0; toast('Your Excel file was read — check the answers, then submit.'); }
+      st.A=Object.assign({},A); Object.keys(pf.lock).forEach(k=>{ st.A[k]=pf.A[k]; }); (st.spec.photos||[]).forEach(it=>tplPhSync(it.ref)); st.route='excel'; tplSaveDraft(); st.step=2; drawTpl(); $('#modalCard').scrollTop=0; toast('Your Excel file was read — check the answers, then submit.'); }
     catch(err){ $('#tpXlErr').textContent=err.message; } };
   if($('#tpNext')) $('#tpNext').onclick=()=>{ const E=tplCheck(st.spec,st.A); $$('[data-te]',el).forEach(x=>x.textContent=''); $$('.inp.bad',el).forEach(x=>x.classList.remove('bad'));
     E.forEach(([r,m])=>{ const t=$(`[data-te="${r}"]`,el); if(t) t.textContent=m; const i=$(`[data-tp="${r}"]`,el); if(i) i.classList.add('bad'); });
@@ -1392,7 +1473,8 @@ function drawTpl(){
   if($('#tpBack')) $('#tpBack').onclick=()=>{ st.step=1; st.route='online'; drawTpl(); };
   if($('#tpSub')) $('#tpSub').onclick=async()=>{ if(!$('#tpOk').checked){ $('#tpErr').textContent='Tick the box to confirm.'; return; }
     const b=$('#tpSub'); b.disabled=true; b.innerHTML='<span class="spin"></span> Submitting…';
-    const A={}; st.spec.inputs.forEach(it=>{ const v=String(st.A[it.ref]??'').trim(); if(v!=='') A[it.ref]=it.type==='tel'?phone10(v):v; });
+    try{ await tplPhUpload(st,b); }catch(err){ $('#tpErr').textContent='A photo could not be sent: '+err.message+' — check your internet and tap Submit again.'; b.disabled=false; b.textContent='Submit'; return; }
+    b.innerHTML='<span class="spin"></span> Submitting…'; const A={}; st.spec.inputs.forEach(it=>{ const v=String(st.A[it.ref]??'').trim(); if(v!=='') A[it.ref]=it.type==='tel'?phone10(v):v; });
     const enrol=tplEnrol(st.spec,A), summ=enrol.length?[['Enrolment (boys / girls)',`${enrol.reduce((a,x)=>a+x.Boys,0)} / ${enrol.reduce((a,x)=>a+x.Girls,0)}`]]:[];
     try{ const r=await api('tplSubmit',{ticket:st.ticket||undefined, taskId:st.taskId, emis:st.D.school['EMIS Code'], answers:A, enrol, route:st.route, name:st.name||(S.user&&S.user.head)||'', summary:summ});
       st.receipt=r.receipt; st.enrolRows=r.enrolRows; st.A=A; try{ localStorage.removeItem(tplDraftKey()); }catch(x){} st.step=3; if(S.user&&S.user.role==='SCHOOL'){ (S.receipts=S.receipts||[]).push(r.receipt); delete S.rec.Enrolment; } drawTpl(); $('#modalCard').scrollTop=0; }
@@ -1426,7 +1508,7 @@ async function tplEvaluator(spec, over){ // over: {sheetName:{A1:value}}
   return {cell, formulaCells:sheet=>{ const ws=wb.Sheets[sheet]; return ws?Object.keys(ws).filter(k=>k[0]!=='!'&&ws[k].f):[]; }};
 }
 // write values into sheets of the template (keeps styles, lists, protection); vals: {sheetName:{rowNum:{COL:value}}}
-async function tplWriteBook(b64, spec, vals, rename){
+async function tplWriteBook(b64, spec, vals, rename, pics){
   await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',()=>window.JSZip);
   const zip=await JSZip.loadAsync(b64,{base64:true});
   for(const sh of spec.sheets){ const V=vals[sh.name]; if(!V||!Object.keys(V).length) continue; let xml=await zip.file(sh.path).async('string'); const seen=new Set();
@@ -1435,6 +1517,7 @@ async function tplWriteBook(b64, spec, vals, rename){
     for(const r of add){ const row=setCells(`<row r="${r}"></row>`,r,V[r]); let placed=false;
       xml=xml.replace(/<row\b[^>]*\br="(\d+)"/g,(m,n)=>{ if(!placed&&+n>r){ placed=true; return row+m; } return m; }); if(!placed) xml=xml.replace('</sheetData>',row+'</sheetData>'); }
     zip.file(sh.path, xml); }
+  if(pics&&pics.length){ const sh=spec.sheets.find(x=>x.name===spec.sheet); if(sh) try{ await tplAddPictures(zip, sh.path, pics); }catch(e){ console.warn('pictures',e); } }
   let w=await zip.file('xl/workbook.xml').async('string');
   if(rename&&rename.from&&rename.to){ const safe=String(rename.to).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31); w=w.replace(`name="${xmlEsc(rename.from)}"`,`name="${xmlEsc(safe)}"`).split(`'${rename.from}'!`).join(`'${safe}'!`).split(`>${rename.from}!`).join(`>'${safe}'!`); }
   if(/<calcPr\b/.test(w)) w=w.replace(/<calcPr\b([^>]*?)\s*(\/?)>/,(m,at,sl)=>`<calcPr${at.replace(/\s*fullCalcOnLoad="[^"]*"/,'')} fullCalcOnLoad="1"${sl}>`); else w=w.replace(/(<\/sheets>)/,'$1<calcPr fullCalcOnLoad="1"/>');
@@ -1444,7 +1527,7 @@ const tplCellVal = v => v==null?'':typeof v==='boolean'?(v?'TRUE':'FALSE'):v;
 // one school's values for every sheet: answers in the form sheet + worked-out formulas everywhere
 async function tplSchoolVals(spec, A, row){ // row: for list templates, the row this school goes on
   const sheetOver={}; const put=(sheet,ref,v)=>{ (sheetOver[sheet]=sheetOver[sheet]||{})[ref]=v; };
-  spec.inputs.forEach(it=>{ let v=A[it.ref]; if(v==null||v==='') return; if(it.type==='number'&&/^-?\d+(\.\d+)?$/.test(String(v).trim())) v=Number(v); put(spec.sheet, spec.shape==='list'?colLetter(it.c)+row:it.ref, v); });
+  spec.inputs.forEach(it=>{ let v=A[it.ref]; if(v==null||v===''||it.type==='photo') return; if(it.type==='number'&&/^-?\d+(\.\d+)?$/.test(String(v).trim())) v=Number(v); put(spec.sheet, spec.shape==='list'?colLetter(it.c)+row:it.ref, v); });
   const ev=await tplEvaluator(spec, sheetOver), vals={};
   const setV=(sheet,ref,v)=>{ const d=XLSX.utils.decode_cell(ref), r=d.r+1, L=colLetter(d.c); ((vals[sheet]=vals[sheet]||{})[r]=vals[sheet][r]||{})[L]=v; };
   Object.entries(sheetOver).forEach(([sh,o])=>Object.entries(o).forEach(([ref,v])=>setV(sh,ref,v)));
@@ -1456,17 +1539,17 @@ async function tplDownload(taskId, items, mode, opt){
   opt=opt||{}; const spec=await tplSpec(taskId), t=((S.data&&S.data.tasks)||[]).find(x=>x['Task ID']===taskId)||(TPL.st&&TPL.st.D&&TPL.st.D.task)||{}, title=fileSafe(t.Title||spec.title||'Request');
   const base=String(spec.fileName||'TEMPLATE.xlsx').replace(/\.xlsx?$/i,'');
   if(mode==='zip1'||(mode==='zip'&&items.length===1)){ const it=items[0], row=spec.dataStart||0; const {vals}=await tplSchoolVals(spec,it.A,row);
-    saveBlob(await tplWriteBook(spec.b64,spec,vals), `${base}_${it.school['EMIS Code']}.xlsx`); return; }
+    saveBlob(await tplWriteBook(spec.b64,spec,vals,null,await tplPicsFor(spec,it.A,row)), `${base}_${it.school['EMIS Code']}.xlsx`); return; }
   if(mode==='zip'){ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',()=>window.JSZip); const out=new JSZip(); let k=0;
     for(const it of items){ toast(`Preparing ${++k} of ${items.length}…`); const {vals}=await tplSchoolVals(spec,it.A,spec.dataStart||0);
-      out.file(`${String(canonCircuit(it.school.Circuit)||'Circuit').replace(/[^\w ]+/g,'')}/${it.school['EMIS Code']} ${String(it.school['School Name']).replace(/[^\w ]+/g,'').slice(0,40)}.xlsx`, await tplWriteBook(spec.b64,spec,vals)); }
+      out.file(`${String(canonCircuit(it.school.Circuit)||'Circuit').replace(/[^\w ]+/g,'')}/${it.school['EMIS Code']} ${String(it.school['School Name']).replace(/[^\w ]+/g,'').slice(0,40)}.xlsx`, await tplWriteBook(spec.b64,spec,vals,null,await tplPicsFor(spec,it.A,spec.dataStart||0))); }
     saveBlob(await out.generateAsync({type:'blob'}), `${title}_school_files_${todayStr()}.zip`); toast(`Downloaded ${items.length} school files.`); return; }
   // everything in one file
-  if(spec.shape==='list'){ const vals={}; let i=0;
-    for(const it of items){ const row=spec.dataStart+i; i++; const sv=await tplSchoolVals(spec,it.A,row); Object.entries(sv.vals).forEach(([sh,rows])=>{ if(sh!==spec.sheet) return; Object.assign(vals[sh]=vals[sh]||{}, rows); }); }
+  if(spec.shape==='list'){ const vals={}, pics=[]; let i=0;
+    for(const it of items){ const row=spec.dataStart+i; i++; const sv=await tplSchoolVals(spec,it.A,row); if((spec.photos||[]).length){ toast(`Adding photos ${i} of ${items.length}…`); pics.push(...await tplPicsFor(spec,it.A,row)); } Object.entries(sv.vals).forEach(([sh,rows])=>{ if(sh!==spec.sheet) return; Object.assign(vals[sh]=vals[sh]||{}, rows); }); }
     // number the rows if the first column is a serial number
     const ws=spec.wb.Sheets[spec.sheet], c0=ws[colLetter(0)+(spec.dataStart)]; if(c0&&typeof c0.v==='number'&&!c0.f) for(let k=0;k<items.length;k++) ((vals[spec.sheet]||{})[spec.dataStart+k]||{})[colLetter(0)]=k+1;
-    saveBlob(await tplWriteBook(spec.b64,spec,vals,opt.sheetName&&opt.sheetName!==spec.sheet?{from:spec.sheet,to:opt.sheetName}:null), `${title}_${todayStr()}.xlsx`); return items.length; }
+    saveBlob(await tplWriteBook(spec.b64,spec,vals,opt.sheetName&&opt.sheetName!==spec.sheet?{from:spec.sheet,to:opt.sheetName}:null,pics), `${title}_${todayStr()}.xlsx`); return items.length; }
   // form templates: the UPLOAD layout when the template has one (row 2 = formulas pointing at the form), else one row per school
   const up=spec.sheets.map(s=>s.name).find(n=>n!==spec.sheet&&(()=>{ const ws=spec.wb.Sheets[n]; return ws&&Object.keys(ws).some(k=>/^[A-Z]+2$/.test(k)&&ws[k].f&&ws[k].f.includes(spec.sheet+'!')); })());
   let headers, rows=[];
@@ -1476,7 +1559,7 @@ async function tplDownload(taskId, items, mode, opt){
       rows.push(headers.map((h,c)=>{ const cell=ws[colLetter(c)+'2']; if(cell&&cell.f){ const v=ev.cell(up,2,c+1); return tplCellVal(v); }
         const k=tplKnown({label:h,type:'text'},D); return k&&k.v?k.v:tplUploadExtra(h,D); })); } }
   else { headers=['School EMIS Code','School Name','Circuit',...spec.inputs.map(i=>i.label)];
-    rows=items.map(it=>[it.school['EMIS Code'],it.school['School Name'],canonCircuit(it.school.Circuit),...spec.inputs.map(i=>it.A[i.ref]??'')]); }
+    rows=items.map(it=>[it.school['EMIS Code'],it.school['School Name'],canonCircuit(it.school.Circuit),...spec.inputs.map(i=>tplTextVal(i,it.A[i.ref]))]); }
   saveBlob(plainWorkbook(headers, rows, up||'RESPONSES'), `${title}_compiled_${todayStr()}.xlsx`); return items.length; }
 function tplUploadExtra(h, D){ const L=tplNorm(h), O=D.office||{}, S0=D.school||{};
   if(/^academic year/.test(L)) return O['Academic Year']||D.year||''; if(/^academic term/.test(L)) return O['Academic Term']||''; if(/^region/.test(L)) return O.Region||'';
@@ -1543,7 +1626,7 @@ async function tplResponsesModal(taskId){
     ${kpis([['Schools that answered',`${done.length} / ${sch.length}`,done.length<sch.length?'var(--amber)':''],['Online form',R.filter(r=>/online/i.test(r.Route)).length],['Excel upload',R.filter(r=>/excel/i.test(r.Route)).length]])}
     <div class="card accent" style="margin:12px 0"><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" id="trOne" ${spec?'':'disabled'}>⬇ ${spec&&spec.shape==='list'?'All schools in one file':'Compiled file (one row per school)'}</button>
-      <button class="btn" id="trZip" ${spec?'':'disabled'}>⬇ Each school's filled template (ZIP)</button>
+      <button class="btn" id="trZip" ${spec?'':'disabled'}>⬇ Each school's filled template (ZIP)</button>${spec&&(spec.photos||[]).length?`<button class="btn" id="trPh" ${done.length?'':'disabled'}>📷 All photos (ZIP)</button>`:''}
       ${spec&&spec.shape==='list'?`<label class="small">Sheet name <input class="inp sm" id="trSheet" value="${esc(spec.sheet)}" style="width:220px"></label>`:''}
       ${spec&&sch.length>done.length?`<label class="small" style="flex-basis:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Schools yet to answer (${sch.length-done.length}):</b><select class="inp sm" id="trMiss" style="width:auto">
         <option value="">leave them out of the download</option><option value="id">add them with school details only (name, EMIS…)</option><option value="data" ${t['Due Date']&&String(t['Due Date']).slice(0,10)<todayStr()?'selected':''}>fill them from data already in the portal (current enrolment + school details)</option></select>
@@ -1570,6 +1653,11 @@ async function tplResponsesModal(taskId){
     try{ await tplEnLoad(); const L=items(); if(!L.length) throw new Error('No school has answered yet. Choose how to add the schools yet to answer, then download.');
       const n=await tplDownload(taskId,L,'one',{sheetName:($('#trSheet')||{}).value}); logExport(t.Title,'Compiled',L.length,n||L.length); }
     catch(e){ toast(e.message,true); } b.disabled=false; b.textContent=spec&&spec.shape==='list'?'⬇ All schools in one file':'⬇ Compiled file (one row per school)'; };
+  if($('#trPh')) $('#trPh').onclick=async()=>{ const b=$('#trPh'); b.disabled=true; try{ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',()=>window.JSZip); const z=new JSZip(); let n=0, k=0;
+      for(const s of done){ k++; b.innerHTML=`<span class="spin"></span> ${k} of ${done.length}…`; const a=itemOf(s).A;
+        for(const it of spec.photos){ const ids=tplPhIds(a[it.ref]); for(let j=0;j<ids.length;j++){ try{ const d=await tplPhGet(ids[j]); z.file(`${String(canonCircuit(s.Circuit)||'Circuit').replace(/[^\w ]+/g,'')}/${s['EMIS Code']} ${String(s['School Name']).replace(/[^\w ]+/g,'').slice(0,40)}${ids.length>1||spec.photos.length>1?' '+(j+1):''}.jpg`, d.split(',')[1], {base64:true}); n++; }catch(e){} } } }
+      if(!n) throw new Error('No photos were found.'); saveBlob(await z.generateAsync({type:'blob'}), `${fileSafe(t.Title).slice(0,50)}_photos_${todayStr()}.zip`); toast(`${n} photo(s) downloaded.`); }
+    catch(e){ toast(e.message,true); } b.disabled=false; b.textContent='📷 All photos (ZIP)'; };
   if($('#trZip')) $('#trZip').onclick=async()=>{ const b=$('#trZip'); b.disabled=true; try{ await tplEnLoad(); const L=items(); if(!L.length) throw new Error('No school has answered yet. Choose how to add the schools yet to answer, then download.'); await tplDownload(taskId,L,'zip'); }catch(e){ toast(e.message,true); } b.disabled=false; };
   $$('[data-trrep]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ const M=await tplReportModel(taskId,sch,by), nm=fileSafe(t.Title).slice(0,60)+'_report_'+todayStr();
       if(b.dataset.trrep==='docx') saveBlob(await tbDocx(M),nm+'.docx'); else if(b.dataset.trrep==='pptx') await tbPptx(M,nm+'.pptx'); else tbPrint(M); }catch(e){ toast(e.message,true); } b.disabled=false; });
@@ -1581,11 +1669,11 @@ async function tplResponsesModal(taskId){
   $$('[data-tre]').forEach(b=>b.onclick=()=>openTplForm(taskId,b.dataset.tre));
   $$('[data-trv]').forEach(b=>b.onclick=()=>{ const s=sch.find(x=>String(x['EMIS Code'])===b.dataset.trv), it=itemOf(s), r=it.r;
     if(!spec){ toast('The template could not be read, so the answers cannot be shown. Use ⬇ to download.',true); return; }
-    const keep=TPL.st; TPL.st={lock:{}}; let html=''; try{ html=tplFormHTML(spec,it.A,true); } finally { TPL.st=keep; }
+    const keep=TPL.st; TPL.st={lock:{},A:it.A,ph:{}}; let html=''; try{ html=tplFormHTML(spec,it.A,true); } finally { TPL.st=keep; }
     openModal(`<h3>${esc(s['School Name'])} <span class="small muted">· ${esc(s['EMIS Code'])}</span></h3><p class="muted small">${esc(t.Title)} · ${esc(r.Route||'')} · ${fmtDT(r['Updated At'])}${r['Submitted By']?' by '+esc(r['Submitted By']):''}${r['Receipt No']?' · receipt '+esc(r['Receipt No']):''}</p>
       <div style="max-height:62vh;overflow:auto">${html}</div>
       <div class="modal-actions"><button class="btn" id="tvBack">‹ Back to responses</button><button class="btn" id="tvX">⬇ Download</button>${m?`<button class="btn primary" id="tvE">✏ Correct for the school</button>`:''}</div>`); $('#modalCard').classList.add('wide','xwide');
-    $('#tvBack').onclick=()=>tplResponsesModal(taskId); $('#tvX').onclick=()=>tplDownload(taskId,[it],'zip1').catch(e=>toast(e.message,true));
+    tplPhLoad($('#modalCard')); $('#tvBack').onclick=()=>tplResponsesModal(taskId); $('#tvX').onclick=()=>tplDownload(taskId,[it],'zip1').catch(e=>toast(e.message,true));
     if($('#tvE')) $('#tvE').onclick=()=>openTplForm(taskId,s['EMIS Code']); });
   $$('[data-trd]').forEach(b=>b.onclick=async()=>{ if(b.dataset.sure!=='1'){ b.dataset.sure='1'; b.textContent='Tap again'; return; } try{ await api('tplDelete',{taskId,emis:b.dataset.trd}); toast('Deleted.'); tplResponsesModal(taskId); }catch(e){ toast(e.message,true); } });
 }
@@ -1849,7 +1937,7 @@ async function tplReportModel(taskId, sch, by){
   const sections=[{heading:'Summary',kpis:[['Schools expected',sch.length],['Schools that answered',done.length],['Yet to answer',miss.length],...(hasEn?[['Learners (boys / girls)',`${byC.reduce((a,r)=>a+r[4],0)} / ${byC.reduce((a,r)=>a+r[5],0)}`]]:[])]},
     {heading:'By circuit',table:{head:['Circuit','Schools','Answered','Yet to answer',...(hasEn?['Boys','Girls','Total']:[])],rows:byC.concat([totalRow])}},
     ...(hasEn?[{chart:{title:'Learners by circuit',labels:byC.map(r=>r[0]),series:[{name:'Boys',values:byC.map(r=>r[4])},{name:'Girls',values:byC.map(r=>r[5])}]}}]:[]),
-    {heading:'Answers by school',table:{head:['School','EMIS','Circuit',...keyIn.map(it=>(it.group&&spec.shape==='list'?'':'')+it.label)],rows:done.map(s=>{ const a=A(s); return [s['School Name'],s['EMIS Code'],canonCircuit(s.Circuit),...keyIn.map(it=>a[it.ref]??'')]; })}},
+    {heading:'Answers by school',table:{head:['School','EMIS','Circuit',...keyIn.map(it=>(it.group&&spec.shape==='list'?'':'')+it.label)],rows:done.map(s=>{ const a=A(s); return [s['School Name'],s['EMIS Code'],canonCircuit(s.Circuit),...keyIn.map(it=>tplTextVal(it,a[it.ref]))]; })}},
     {heading:`Schools yet to answer (${miss.length})`,table:{head:['School','EMIS','Circuit','Phone'],rows:miss.map(s=>[s['School Name'],s['EMIS Code'],canonCircuit(s.Circuit),s.Phone||''])}}];
   return {title:t.Title, subtitle:`${CONFIG.ORG_NAME} · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`, notes:t.Description||'', landscape:keyIn.length>5, sections}; }
 
@@ -1896,7 +1984,7 @@ function taskCard(t, subs){
       <div class="drop" data-drop="${esc(t['Task ID'])}">
         <input type="file" multiple class="hidden" data-inp="${esc(t['Task ID'])}" ${ex?`accept="${ex.map(e=>'.'+e).join(',')}"`:''}>
         <b>Click to choose files</b> or drag them here<div class="small muted">${ex?'Accepted: '+ex.map(e=>'.'+e).join(' '):'Any file type'} · max ${CONFIG.MAX_FILE_MB} MB each</div>
-      </div>
+      </div>${lnkBox(`[data-inp="${t['Task ID']}"]`)}
       <div class="queue" data-q="${esc(t['Task ID'])}"></div>
       <div class="up-row hidden" data-up="${esc(t['Task ID'])}">
         <input class="inp" placeholder="Optional note to the Directorate" data-note="${esc(t['Task ID'])}">
@@ -2180,6 +2268,32 @@ async function openReturnFormFor(emis){
   try{ retLoad(await api('returnStaffStart',{emis})); R.name=(S.user.name||'')+' (EMIS Office)'; R.step=1; }catch(e){ R.err=e.message; }
   drawRet();
 }
+/* ---- "Paste a link instead": heads who keep their file online (Google Sheets / Drive, OneDrive, Dropbox).
+ * The portal fetches the file and hands it to the normal upload box, as if it had been chosen from the phone.
+ * WPS / WhatsApp links cannot be read — the head is told to send the file itself. */
+const lnkBox = sel => `<div class="lnk"><button type="button" class="lnk-t" data-lnk="${esc(sel)}">🔗 File is on Google Drive / OneDrive? Paste the link instead</button>
+  <div class="lnk-b hidden"><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp" type="url" inputmode="url" placeholder="Paste the link (Google Sheets, Google Drive, OneDrive, Dropbox)" style="flex:1;min-width:220px"><button type="button" class="btn primary" data-lnkgo>Get the file</button></div>
+  <div class="small muted" style="margin-top:4px">Google: Share ▸ General access ▸ <b>Anyone with the link</b>. WPS and WhatsApp links cannot be read — send the file itself.</div><div class="err small" data-lnkerr></div></div></div>`;
+function lnkKind(u){ u=String(u||'').trim(); if(!/^https?:\/\//i.test(u)) return 'bad';
+  if(/(^|\.)(wps\.com|wps\.cn|kdocs\.cn|docs\.wps|wpscdn)/i.test(u.split('/')[2]||'')) return 'wps';
+  if(/whatsapp|wa\.me/i.test(u)) return 'wa'; return 'ok'; }
+document.addEventListener('click', async e=>{
+  const t=e.target.closest('[data-lnk]'); if(t){ e.preventDefault(); const b=t.parentElement.querySelector('.lnk-b'); b.classList.toggle('hidden'); if(!b.classList.contains('hidden')) b.querySelector('input').focus(); return; }
+  const g=e.target.closest('[data-lnkgo]'); if(!g) return; e.preventDefault();
+  const box=g.closest('.lnk'), sel=box.querySelector('[data-lnk]').dataset.lnk, inp=document.querySelector(sel), url=box.querySelector('input').value.trim(), er=box.querySelector('[data-lnkerr]'); er.textContent='';
+  const k=lnkKind(url);
+  if(k==='bad'){ er.textContent='Paste the full link — it starts with https://'; return; }
+  if(k==='wps'){ er.innerHTML='This is a <b>WPS</b> link. WPS does not let other systems open it. In WPS: open the file ▸ <b>Share ▸ Share as file</b> (or Download / Save as ▸ Excel .xlsx), then choose the file above.'; return; }
+  if(k==='wa'){ er.textContent='This is a WhatsApp link, not the file. Save the file to your phone from WhatsApp, then choose it above.'; return; }
+  if(!inp){ er.textContent='Open the upload box again and retry.'; return; }
+  g.disabled=true; const old=g.textContent; g.innerHTML='<span class="spin"></span> Getting the file…';
+  try{ const f=await api('fetchLink',{url}); const file=new File([b64ToBlob(f.data,f.mime)], f.name, {type:f.mime||''});
+    const acc=String(inp.getAttribute('accept')||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean), ext='.'+extOf(file.name);
+    if(acc.length&&!acc.includes(ext)) throw new Error(`The link gave “${file.name}”, but this box takes ${acc.join(' ')} files.`);
+    const dt=new DataTransfer(); dt.items.add(file); inp.files=dt.files; inp.dispatchEvent(new Event('change',{bubbles:true}));
+    toast(`“${file.name}” fetched from the link.`); box.querySelector('input').value=''; box.querySelector('.lnk-b').classList.add('hidden'); }
+  catch(err){ er.textContent=err.message; } g.disabled=false; g.textContent=old;
+});
 async function dl(id){
   toast('Preparing download…');
   try{ const f=await api('download',{id}); saveBlob(b64ToBlob(f.data,f.mime), f.name); }catch(e){ toast(e.message,true); }
@@ -3120,7 +3234,7 @@ function drawWiz(){
       ${(i.files||[]).some(f=>f.status==='Rejected')?`<div class="banner bad" style="margin-bottom:10px">↻ Your new file will <b>replace</b> the returned file${(i.files||[]).filter(f=>f.status==='Rejected').length>1?'s':''} below — you don't need to delete anything.</div>`:''}
       ${(i.files||[]).length?`<div class="stlist" style="margin-bottom:10px">${i.files.map(f=>stRow({'File Name':f.name,'Submitted At':f.at,Status:f.status,Remark:f.remark})).join('')}</div>`:''}
       <label class="drop big" id="qDrop"><input type="file" id="qIn" class="hidden" multiple ${ex?`accept="${ex.map(e=>'.'+e).join(',')}"`:''}>
-        <div style="font-size:34px">📄</div><b>Tap here to choose your file</b><div class="small muted">or drag it here · ${ex?ex.map(e=>'.'+e).join(' '):'any file'} · up to ${CONFIG.MAX_FILE_MB} MB${max?` · up to ${max} file${max>1?'s':''}`:''}</div></label>
+        <div style="font-size:34px">📄</div><b>Tap here to choose your file</b><div class="small muted">or drag it here · ${ex?ex.map(e=>'.'+e).join(' '):'any file'} · up to ${CONFIG.MAX_FILE_MB} MB${max?` · up to ${max} file${max>1?'s':''}`:''}</div></label>${lnkBox('#qIn')}
       <div class="queue" id="qQ">${QW.files.map((f,k)=>`<div class="q"><span>📎 ${esc(f.name)} <span class="muted">(${fmtSize(f.size/1024)})</span></span><span id="qs${k}">${QW.busy?'':`<a href="#" data-qrm="${k}">remove</a>`}</span></div>${f._ac===undefined?'':f._ac===null?'':acBox(f._ac,'Portal check of this file')+(f._ac.sev==='red'?'<div class="small" style="color:var(--red);margin:-4px 0 8px">Please correct the file and choose it again (tap “remove”), or submit it anyway — the EMIS Office will see these findings.</div>':'')}${f._ac===undefined&&/\.(xlsx|xlsm|xls|csv)$/i.test(f.name)?'<div class="small muted" style="margin:-2px 0 8px"><span class="spin"></span> Checking the file…</div>':''}`).join('')}</div>
       ${declMod(t)?declHTML(declMod(t),'qw',QW.decl||{}):''}
       <label class="f">Message to the Directorate (optional)</label><input class="inp" id="qNote" value="${esc(QW.note||'')}">
@@ -3512,7 +3626,7 @@ function importModal(mod, emis){
   const list=!MODS[mod].grid&&mod!=='Enrolment';
   openModal(`<h3>Upload filled Excel — ${esc(FORMS[mod]||MODS[mod].label)}</h3>
     <p class="muted small">Use the Excel template for this tab (⬇ Excel template). ${school?'Only rows for your school are read.':'Rows are matched to schools by their School EMIS Code.'}</p>
-    <label class="drop big"><input type="file" id="imF" class="hidden" accept=".xlsx,.xlsm,.xls,.csv"><div style="font-size:30px">📊</div><b>Tap here to choose the filled Excel file</b></label>
+    <label class="drop big"><input type="file" id="imF" class="hidden" accept=".xlsx,.xlsm,.xls,.csv"><div style="font-size:30px">📊</div><b>Tap here to choose the filled Excel file</b></label>${lnkBox('#imF')}
     <div id="imOut"></div><div class="err" id="imErr"></div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="imGo" disabled>Import</button></div>`);
   $('#modalCard').classList.add('wide');
@@ -4239,7 +4353,7 @@ function drawRet(){
         <div><label class="f">School phone number *</label><input class="inp big" id="rtP" inputmode="tel" value="${esc(qwMe().phone||'')}" placeholder="the number the EMIS Office has" required></div>
         <div><label class="f">Your full name *</label><input class="inp big" id="rtN" value="${esc(qwMe().name||'')}" required></div></div>
       <div class="err" id="rtErr"></div><div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Close</button><button class="btn primary big" id="rtGo">Continue ›</button></div></form>`;
-  else if(st<=7) body=`${st===1&&!R.ro?`<div class="rt-xl"><div><b>📊 Filled the Regional Excel template?</b><div class="small muted">Upload it here. The portal reads your answers; you only check them and submit.</div></div><label class="btn primary rt-xlb">⬆ Upload filled template<input type="file" id="rtXlIn" accept=".xlsx,.xlsm,.xls" class="hidden"></label></div><div class="err" id="rtXlErr"></div>`:''}<h3>${esc(RET_STEPS[st])}</h3>${st===1&&R.submitted?`<div class="banner ok" style="margin-bottom:10px">✓ Your school submitted this form on ${fmtDT(R.submitted.at)}. Your answers are filled in — update anything that changed and submit again.</div>`:''}
+  else if(st<=7) body=`${st===1&&!R.ro?`<div class="rt-xl"><div><b>📊 Filled the Regional Excel template?</b><div class="small muted">Upload it here. The portal reads your answers; you only check them and submit.</div></div><label class="btn primary rt-xlb">⬆ Upload filled template<input type="file" id="rtXlIn" accept=".xlsx,.xlsm,.xls" class="hidden"></label></div>${lnkBox('#rtXlIn')}<div class="err" id="rtXlErr"></div>`:''}<h3>${esc(RET_STEPS[st])}</h3>${st===1&&R.submitted?`<div class="banner ok" style="margin-bottom:10px">✓ Your school submitted this form on ${fmtDT(R.submitted.at)}. Your answers are filled in — update anything that changed and submit again.</div>`:''}
       ${retSection(st)}<div class="err" id="rtErr"></div>
       <div class="modal-actions"><button type="button" class="btn" id="rtBack">‹ Back</button><button type="button" class="btn primary big" id="rtNext">${st===7?'Review ›':'Next ›'}</button></div>`;
   else if(st===8){ const E=retCheck();
@@ -5745,6 +5859,10 @@ const Mock = (() => {
       files[id]={data:req.data,mime:req.mimeType}; return cp(subs[subs.length-1]); },
     deleteMySubmission:req=>{ const s=need(req,['SCHOOL']); const i=subs.findIndex(x=>x['Submission ID']===req.id&&x['EMIS Code']===s.emis);
       if(i<0) throw new Error('File not found.'); if(subs[i].Status==='Accepted') throw new Error('Accepted files cannot be deleted.'); subs.splice(i,1); return true; },
+    tplPhoto:req=>{ if(!req.data||req.data.length>420000) throw new Error('The photo is too large.'); const id='PH'+Math.random().toString(36).slice(2,10); (A._ph=A._ph||{})[id]=req.data; return {id}; },
+    tplPhotoGet:req=>{ const d=(A._ph||{})[req.id]; if(!d) throw new Error('Photo not found.'); return {mime:'image/jpeg',data:d}; },
+    fetchLink:req=>{ const u=String(req.url||''); if(!/google\.com|1drv\.ms|onedrive|sharepoint|dropbox/i.test(u)) throw new Error('This link cannot be read. Use a Google Sheets / Google Drive, OneDrive or Dropbox link shared as "Anyone with the link", or choose the file itself.');
+      const csv='EMIS Code,Full Name,Gender,Staff ID,Rank,Category\n60101001,Ama Mensah (from link),Female,123456,Principal Supt,Teaching\n'; return {name:'Staff_list_from_link.csv',mime:'text/csv',data:btoa(csv)}; },
     subCorrect:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER']); const r=subs.find(x=>x['Submission ID']===req.id); if(!r) throw new Error('File not found.'); files[r['Submission ID']].data=req.data; r.Note=('[Corrected by '+s.name+(req.note?': '+req.note:'')+'] '+(r.Note||'')).slice(0,500); return Object.assign({},r); },
     returnStaffStart:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER']); const sch=schools.find(x=>x['EMIS Code']===String(req.emis||'').trim()); if(!sch) throw new Error('School not found.'); const ticket='R'+Math.random().toString(36).slice(2); sess[ticket]={ret:sch['EMIS Code'],name:s.name+' (EMIS Office)'}; return Object.assign(A._retData(sch),{ticket}); },
     download:req=>{ const s=need(req); const r=subs.find(x=>x['Submission ID']===req.id); if(!r||!scope(s,r)) throw new Error('File not found.');
