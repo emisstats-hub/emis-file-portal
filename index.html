@@ -763,6 +763,7 @@ async function boot(){
   if(S.mustSetPin) return setPinModal();
   if(!S._spareChecked){ S._spareChecked=true; refreshSpare().then(ch=>{ if(ch&&S.token) boot(); }); }
   const fab=$('#qFab'); if(fab) fab.remove(); helpBot(S.user.role==='SCHOOL');
+  if(S.user.quickTab){ S.tab=S.user.quickTab; $('#app').innerHTML=shell(null,false); wireTabs(); renderChips(); renderSchoolTab(); return; }
   if(S.user.role==='SCHOOL'){ if(!allTabs().some(t=>t[0]===S.tab)) S.tab='files'; $('#app').innerHTML=shell(null,false); wireTabs(); renderChips(); await loadSchool(); bgUpdates(); }
   else { await loadStaff(); }
   if(S.mustChange) changePwModal(true);
@@ -1255,7 +1256,7 @@ async function tplParse(b64, zip){
 // ---- what the portal already knows (fills the boxes before the head starts) ----
 const tplNorm = s => String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 function tplClassOf(t){ t=tplNorm(t).replace(/[^a-z0-9 ]/g,' ');
-  let m; if((m=t.match(/\bkg ?([12])\b/))) return 'KG'+m[1]; if((m=t.match(/\b(?:basic|b|primary|p|class) ?([1-6])\b/))) return 'B'+m[1];
+  let m; if(/\bcreche\b|\bcr[eè]che\b/.test(t)&&!/total/.test(t)) return 'CRECHE'; if((m=t.match(/\bnursery ?([12])\b/))) return 'N'+m[1]; if((m=t.match(/\bkg ?([12])\b/))) return 'KG'+m[1]; if((m=t.match(/\b(?:basic|b|primary|p|class) ?([1-6])\b/))) return 'B'+m[1];
   if((m=t.match(/\b(?:jhs|form) ?([1-3])\b/))) return 'B'+(6+ +m[1]); if((m=t.match(/\bshs ?([1-3])\b/))) return 'SHS'+m[1]; return ''; }
 function tplSexOf(it){ const h=tplNorm(it.colHead||''), l=tplNorm(it.label);
   if(/day|board|trained|teacher|staff|sitting|writing|stream|desk|chair|toilet|urinal|cubicle/.test(l)) return '';
@@ -1271,9 +1272,10 @@ function tplKnown(it, D){
   if((has('mmda','district','municipal'))&&!has('home','other')){ const opt=it.type==='select'?(it.options||[]).find(x=>/asante akim north/i.test(x)):''; return {v:opt||(it.type==='select'?'':LP_MMDA),lock:!!opt||it.type!=='select'}; }
   if(has('academic year')) return {v:tplPick(it,O['Academic Year']||D.year)||O['Academic Year']||D.year};
   if(has('circuit')&&!has('supported')) return {v:canonCircuit(S0.Circuit)};
+  if(/^level (of|offered)|^level$/.test(L)&&it.type==='select'){ const want=levelsOf(S0).sort().join(','); const lv=String(S0.Level||'').toLowerCase(), c=want?(it.options||[]).filter(x=>parseLevels(x).sort().join(',')===want):[]; const o=c.find(x=>/creche/i.test(x)===/creche/.test(lv)&&/nursery/i.test(x)===/nursery/.test(lv))||c[0]; if(o) return {v:o}; }
   if(has('community','location of school','school location')&&!has('liaison')) return {v:S0.Community||''};
   if(has('gps')) return {v:S0['GhanaPost GPS']||''};
-  if(has('head')&&!has('assistant')){ if(has('staff id')) return {v:S0['Head Staff ID']}; if(has('phone','telephone','mobile','contact')) return {v:S0['Head Phone']||S0.Phone}; if(has('email','e-mail')) return {v:S0['Head Email']}; if(!has('date','since','year','sex','gender','rank','qualification')) return {v:S0['Head Name']}; }
+  if(has('head')&&!has('assistant')){ if(has('staff id')) return OWN(S0)==='Private'?'':{v:S0['Head Staff ID']}; if(has('phone','telephone','mobile','contact')) return {v:S0['Head Phone']||S0.Phone}; if(has('email','e-mail')) return {v:S0['Head Email']}; if(!has('date','since','year','sex','gender','rank','qualification')) return {v:S0['Head Name']}; }
   if(has('school email','school e-mail')) return {v:S0.Email};
   if(has('data officer')){ if(has('phone','telephone')) return {v:S0['Data Officer Phone']}; if(has('email')) return {v:S0['Data Officer Email']}; if(has('staff id')) return {v:S0['Data Officer Staff ID']}; if(has('name')) return {v:S0['Data Officer']}; }
   if((D.enrol||[]).length){ const cl=tplClassOf((it.rowLabel||'')+' '+it.label), sx=tplSexOf(it);
@@ -1628,7 +1630,7 @@ async function tplResponsesModal(taskId){
     ${kpis([['Schools that answered',`${done.length} / ${sch.length}`,done.length<sch.length?'var(--amber)':''],['Online form',R.filter(r=>/online/i.test(r.Route)).length],['Excel upload',R.filter(r=>/excel/i.test(r.Route)).length]])}
     <div class="card accent" style="margin:12px 0"><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" id="trOne" ${spec?'':'disabled'}>⬇ ${spec&&spec.shape==='list'?'All schools in one file':'Compiled file (one row per school)'}</button>
-      <button class="btn" id="trZip" ${spec?'':'disabled'}>⬇ Each school's filled template (ZIP)</button>${spec&&(spec.photos||[]).length?`<button class="btn" id="trPh" ${done.length?'':'disabled'}>📷 All photos (ZIP)</button>`:''}
+      <button class="btn" id="trZip" ${spec?'':'disabled'}>⬇ Each school's filled template (ZIP)</button>${spec&&(spec.photos||[]).length?`<button class="btn" id="trPh" ${done.length?'':'disabled'}>📷 All photos (ZIP)</button>`:''}${spec&&siColsOf(spec)?`<button class="btn primary" id="trSi" title="Adds up every school's numbers into the Region's DISTRICT DETAILS">⬇ Region's staff-issues template</button>`:''}
       ${spec&&spec.shape==='list'?`<label class="small">Sheet name <input class="inp sm" id="trSheet" value="${esc(spec.sheet)}" style="width:220px"></label>`:''}
       ${spec&&sch.length>done.length?`<label class="small" style="flex-basis:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Schools yet to answer (${sch.length-done.length}):</b><select class="inp sm" id="trMiss" style="width:auto">
         <option value="">leave them out of the download</option><option value="id">add them with school details only (name, EMIS…)</option><option value="data" ${t['Due Date']&&String(t['Due Date']).slice(0,10)<todayStr()?'selected':''}>fill them from data already in the portal (current enrolment + school details)</option></select>
@@ -1655,6 +1657,10 @@ async function tplResponsesModal(taskId){
     try{ await tplEnLoad(); const L=items(); if(!L.length) throw new Error('No school has answered yet. Choose how to add the schools yet to answer, then download.');
       const n=await tplDownload(taskId,L,'one',{sheetName:($('#trSheet')||{}).value}); logExport(t.Title,'Compiled',L.length,n||L.length); }
     catch(e){ toast(e.message,true); } b.disabled=false; b.textContent=spec&&spec.shape==='list'?'⬇ All schools in one file':'⬇ Compiled file (one row per school)'; };
+  if($('#trSi')) $('#trSi').onclick=async()=>{ const b=$('#trSi'); b.disabled=true; b.innerHTML='<span class="spin"></span> Building…';
+    try{ await tplEnLoad(); const L=items(); if(!L.length) throw new Error('No school has answered yet.'); const r=await siFromOneRow(spec, L);
+      $('#trInfo').innerHTML=`<div class="banner ok" style="margin-top:10px">✓ DISTRICT DETAILS filled with the totals of <b>${L.length}</b> school(s) (${r.mx.reduce((a,x)=>a+x.t,0)} staff). ${r.names?`STAFF DETAILS lists the <b>${r.names}</b> staff entered on the Staff issues tab by these schools.`:'STAFF DETAILS is empty: the one-row form collects numbers only. To send names, ask schools to also fill the <b>Staff issues</b> tab (its form link).'}</div>`; }
+    catch(e){ toast(e.message,true); } b.disabled=false; b.textContent="⬇ Region's staff-issues template"; };
   if($('#trPh')) $('#trPh').onclick=async()=>{ const b=$('#trPh'); b.disabled=true; try{ await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',()=>window.JSZip); const z=new JSZip(); let n=0, k=0;
       for(const s of done){ k++; b.innerHTML=`<span class="spin"></span> ${k} of ${done.length}…`; const a=itemOf(s).A;
         for(const it of spec.photos){ const ids=tplPhIds(a[it.ref]); for(let j=0;j<ids.length;j++){ try{ const d=await tplPhGet(ids[j]); z.file(`${String(canonCircuit(s.Circuit)||'Circuit').replace(/[^\w ]+/g,'')}/${s['EMIS Code']} ${String(s['School Name']).replace(/[^\w ]+/g,'').slice(0,40)}${ids.length>1||spec.photos.length>1?' '+(j+1):''}.jpg`, d.split(',')[1], {base64:true}); n++; }catch(e){} } } }
@@ -2120,9 +2126,24 @@ function fillsChips(t){ const f=fillsOf(t); if(!f.length) return '';
   const names=f.flatMap(m=>m==='SchoolReturn'?['Enrolment','Furniture','Classrooms','Projects']:[FORMS[m]||m]); return [...new Set(names)].join(', '); }
 function retIssues(A){ const keep=R.A, keepP=R.P; R.A=A; R.P=R.P||{}; let E=[]; try{ E=retCheck(); }finally{ R.A=keep; R.P=keepP; }
   return E.filter(e=>!String(e.ref||'').startsWith('P:')).map(e=>typeof e==='string'?e:e.ref&&!/^P:/.test(e.ref)?e.ref+' – '+e.m:e.m); }
-function openKindForm(t){ const k=taskKind(t); if(k==='form:Officers') return openOfficerForm(); if(k==='form:template') return openTplForm(t['Task ID']); return openReturnForm(); }
+function openKindForm(t){ const k=taskKind(t); if(k==='form:tab') return openTabLink(tabOfTask(t)); if(k==='form:Officers') return openOfficerForm(); if(k==='form:template') return openTplForm(t['Task ID']); return openReturnForm(); }
 function openTaskEntry(id){ const t=(S._ptasks||[]).find(x=>x['Task ID']===id)||{}; const k=taskKind(t);
-  if(k==='form:SchoolReturn') return openReturnForm(); if(k==='form:Officers') return openOfficerForm(); return openWizard(id); }
+  if(k==='form:tab') return openTabLink(tabOfTask(t)); if(k==='form:SchoolReturn') return openReturnForm(); if(k==='form:Officers') return openOfficerForm(); return openWizard(id); }
+/* ---- form link for a data tab (?fill=StaffIssues): EMIS code + school phone, no password; the head sees only that tab ---- */
+const tabOfTask = t => (tplOpts(t).find(x=>/^tab:/.test(x))||'').slice(4);
+const taskLink = t => { const k=taskKind(t); return k==='form:template'?tplLink(t['Task ID']):k==='form:tab'?formLink(tabOfTask(t)):k==='form:SchoolReturn'?baseUrl()+'?return=1':baseUrl()+'?submit='+encodeURIComponent(t['Task ID']); };
+function openTabLink(mod){ const me=qwMe(), nm=FORMS[mod]||(MODS[mod]||{}).label||mod;
+  if(S.token&&S.user&&S.user.role==='SCHOOL'&&!S.user.quickTab){ closeModal(); S.tab=mod; goTab(mod); return; }
+  openModal(`<h3>📝 ${esc(nm)}</h3><p class="muted">Enter your school's EMIS code, the school phone number the EMIS Office has, and your name. No password is needed. You can fill the form online or upload the Excel template, then submit and get a receipt.</p>
+    <form id="tl0"><div class="grid2"><div><label class="f">School EMIS code *</label><input class="inp big" id="tlE" inputmode="numeric" value="${esc(me.emis||'')}" required></div>
+      <div><label class="f">School phone number *</label><input class="inp big" id="tlP" inputmode="tel" value="${esc(me.phone||'')}" required></div>
+      <div><label class="f">Your full name *</label><input class="inp big" id="tlN" value="${esc(me.name||'')}" required></div></div>
+    <div class="err" id="tlErr"></div><div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Close</button><button class="btn primary big" id="tlGo">Open the form ›</button></div></form>`);
+  $('#tl0').onsubmit=async e=>{ e.preventDefault(); const b=$('#tlGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> Checking…'; $('#tlErr').textContent='';
+    const emis=$('#tlE').value.trim(), phone=$('#tlP').value.trim(), name=$('#tlN').value.trim();
+    try{ const r=await api('tabStart',{module:mod, emis, phone, name}); qwRemember(Object.assign(qwMe(),{emis,phone,name})); closeModal();
+      S.token=r.token; S.user=r.user; S.year=r.year||S.year; S.tab=mod; S.rec={}; S.receipts=null; boot(); }
+    catch(err){ $('#tlErr').textContent=err.message; b.disabled=false; b.textContent='Open the form ›'; } }; }
 /* ---- fill a tab from Excel files schools already submitted (Admin / EMIS Officer) ---- */
 const FILLABLE = () => Object.keys(XL).filter(k=>FORMS[k]);
 async function subToRows(sub, mod){
@@ -2962,10 +2983,10 @@ const STAFF_TAB_OF = { StaffIssues:'sissues', Enrolment:'enrol', SchoolStaff:'st
 const hasJHS = s => { const l=levelsOf(s); return !l.length || l.includes('JHS'); };
 function schoolTabs(){ const t=SCHOOL_TABS.slice(); if(hasJHS({Level:S.user.level})) t.splice(6,0,['BECE','BECE']); t.push(['Receipts','Receipts']); return t; }
 const baseUrl = () => location.href.split(/[?#]/)[0];
-const formLink = mod => baseUrl()+'?tab='+encodeURIComponent(mod);
+const formLink = mod => baseUrl()+'?fill='+encodeURIComponent(mod);
 const linkBtn = (mod, noWa) => (typeof xlBtns==='function'?xlBtns(mod):'')+`<button class="btn" onclick="copyFormLink('${mod}')" title="Copy a link that opens this form for schools">🔗 Form link</button>`+(!noWa&&typeof waModBtn==='function'?waModBtn(mod):'');
 function copyFormLink(mod){
-  const txt=`${CONFIG.MUNICIPALITY} Education Directorate — ${FORMS[mod]||mod} form (${S.year||CONFIG.YEAR})\nHeads: sign in with your school's EMIS code and password, fill in the form, then click "Submit & get receipt".\n${formLink(mod)}`;
+  const txt=`${CONFIG.MUNICIPALITY} Education Directorate — ${FORMS[mod]||mod} form (${S.year||CONFIG.YEAR})\nHeads: tap the link, enter your school's EMIS code, the school phone number and your name — no password needed. Fill in the form (or upload the Excel template), then tap "Submit & get receipt".\n${formLink(mod)}`;
   navigator.clipboard.writeText(txt).then(()=>toast('Form link copied — paste it into WhatsApp or SMS.'),
     ()=>openModal(`<h3>Form link</h3><textarea class="inp" rows="6">${esc(txt)}</textarea><div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>`));
 }
@@ -3359,7 +3380,7 @@ function qLoginHint(){
 }
 function copyUploadLink(taskId){
   const t=S.data.tasks.find(x=>x['Task ID']===taskId);
-  const txt=`*${t.Title}*${t['Due Date']?' — deadline '+fmtDate(t['Due Date']):''}\nHeads of school: tap the link, enter your EMIS code, name and school phone number, then choose your file. No password is needed and you will get a receipt.\n${baseUrl()}?submit=${encodeURIComponent(taskId)}`;
+  const txt=`*${t.Title}*${t['Due Date']?' — deadline '+fmtDate(t['Due Date']):''}\nHeads of school: tap the link, enter your EMIS code, name and school phone number, then ${taskKind(t)==='upload'?'choose your file':'fill the form'}. No password is needed and you will get a receipt.\n${taskLink(t)}`;
   navigator.clipboard.writeText(txt).then(()=>toast('Upload link copied — paste it into WhatsApp.'),()=>openModal(`<h3>Upload link</h3><textarea class="inp" rows="6">${esc(txt)}</textarea><div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>`));
 }
 
@@ -4230,7 +4251,7 @@ function retUploadRow(A0, P, sch, office){
     'Level-':g('C7'), 'Affiliation Type':P['Affiliation Type']||sch['Affiliation Type']||'', 'School Ownership Type':P.Ownership||sch.Ownership||'',
     'Religion (applies':(g('C12')===''||g('C12')==='Not applicable')?'':(g('C12')==='Other'&&g('C13')?g('C13'):g('C12')),
     'Denomination':(g('C14')===''||g('C14')==='Not applicable')?'':(g('C14')==='Other'&&g('C15')?g('C15'):g('C14')),
-    'NAME OF HEADTEACHER':sch['Head Name']||'', 'STAFF ID OF HEADTEACHER':sch['Head Staff ID']||'', 'Telephone Number of Headteacher':sch['Head Phone']||sch.Phone||'', 'Email Address of Headteacher':sch['Head Email']||'',
+    'NAME OF HEADTEACHER':sch['Head Name']||'', 'STAFF ID OF HEADTEACHER':OWN(sch)==='Private'?'':(sch['Head Staff ID']||''), 'Telephone Number of Headteacher':sch['Head Phone']||sch.Phone||'', 'Email Address of Headteacher':sch['Head Email']||'',
     'Established Date':g('C20')===''?'':g('C20')+(g('D20')!==''?'-'+String(g('D20')).padStart(2,'0')+(g('E20')!==''?'-'+String(g('E20')).padStart(2,'0'):''):''),
     'Is the school in urban':P.Locality||sch.Locality||'', 'School Location/Community':P.Community||sch.Community||'',
     'Vacancies':g('C78')!=='Yes'?'':yes([...RET_VAC.KG,...RET_VAC.Primary,...RET_VAC.JHS]),
@@ -4772,6 +4793,7 @@ function vExports(){
 /* ============================== NAVIGATION: top bar, side menu, profile menu ============================== */
 function navGroups(){
   const u=S.user, r=u.role;
+  if(r==='SCHOOL'&&u.quickTab) return [{k:'qG',l:FORMS[u.quickTab]||(MODS[u.quickTab]||{}).label||u.quickTab,ic:'📝',tabs:[[u.quickTab,FORMS[u.quickTab]||(MODS[u.quickTab]||{}).label||u.quickTab]]}];
   if(r==='SCHOOL'){
     const jhs=hasJHS({Level:u.level});
     return [
@@ -4932,9 +4954,9 @@ function vStaffIssues(){ modView(['StaffIssues'],()=>{
   $('#siDl').onclick=()=>siDownload(all).catch(e=>toast(e.message,true));
 }); }
 // fill the Region's template (keeps its look): DISTRICT DETAILS row 7 + STAFF DETAILS from row 16
-async function siDownload(rows){
+async function siDownload(rows, mx, nSchools){
   await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',()=>window.JSZip);
-  let tplB64=SI_TPL; try{ const t=await api('tabTemplate',{module:'StaffIssues'}); if(t&&t.data&&/\.xlsx$/i.test(t.name||'')) tplB64=t.data; }catch(e){}
+  const tplB64=SI_TPL;
   const zip=await JSZip.loadAsync(tplB64,{base64:true}), wbx=await zip.file('xl/workbook.xml').async('string'), rels=await zip.file('xl/_rels/workbook.xml.rels').async('string');
   const pathOf=nm=>{ const sh=[...wbx.matchAll(/<sheet\b[^>]*\/>/g)].map(x=>x[0]).find(t=>new RegExp(`name="${nm}"`,'i').test(t)); if(!sh) return null; const rid=(sh.match(/r:id="([^"]+)"/)||[])[1];
     const rel=[...rels.matchAll(/<Relationship\b[^>]*\/>/g)].map(x=>x[0]).find(t=>t.includes(`Id="${rid}"`)); const tg=(rel.match(/Target="([^"]+)"/)||[])[1]; return tg.startsWith('/')?tg.slice(1):'xl/'+tg.replace(/^\.\//,''); };
@@ -4945,7 +4967,7 @@ async function siDownload(rows){
       xml=xml.replace(/<row\b[^>]*\br="(\d+)"/g,(m,n)=>{ if(!placed&&+n>r){ placed=true; return row+m; } return m; }); if(!placed) xml=xml.replace('</sheetData>',row+'</sheetData>'); }
     zip.file(p,xml); };
   const add=(L,n)=>colLetter(colNum(L)-1+n);
-  const d={7:{A:1,B:region,C:dist}}; siMatrix(rows).forEach((r,i)=>{ const L=SI_ISSUES[i][1]; d[7][L]=r.tm; d[7][add(L,1)]=r.tf; d[7][add(L,2)]=r.nm; d[7][add(L,3)]=r.nf; });
+  const d={7:{A:1,B:region,C:dist}}; (mx||siMatrix(rows)).forEach((r,i)=>{ const L=SI_ISSUES[i][1]; d[7][L]=r.tm; d[7][add(L,1)]=r.tf; d[7][add(L,2)]=r.nm; d[7][add(L,3)]=r.nf; });
   await put('DISTRICT DETAILS', d);
   const sd={15:{O:'SCHOOL',P:'EMIS CODE',Q:'CIRCUIT',R:'ISSUE GROUP'}}, ord=rows.slice().sort((a,b)=>String(a.Issue).localeCompare(String(b.Issue))||canonCircuit(a.Circuit).localeCompare(canonCircuit(b.Circuit))||String(a['School Name']).localeCompare(String(b['School Name'])));
   ord.forEach((r,i)=>{ sd[16+i]={A:i+1,B:region,C:dist,D:r['Full Name']||'',E:r.Gender==='Male'?'✓':'',F:r.Gender==='Female'?'✓':'',G:r.Category==='Teaching'?'✓':'',H:r.Category==='Non-teaching'?'✓':'',I:r.Schedule||'',J:r['Staff ID']||'',K:r.Rank||'',
@@ -4953,7 +4975,16 @@ async function siDownload(rows){
   await put('STAFF DETAILS', sd);
   let w=wbx; if(/<calcPr\b/.test(w)) w=w.replace(/<calcPr\b([^>]*?)\s*(\/?)>/,(m,at,sl)=>`<calcPr${at.replace(/\s*fullCalcOnLoad="[^"]*"/,'')} fullCalcOnLoad="1"${sl}>`); else w=w.replace(/(<\/sheets>)/,'$1<calcPr fullCalcOnLoad="1"/>'); zip.file('xl/workbook.xml',w);
   saveBlob(await zip.generateAsync({type:'blob',mimeType:XL_MIME}), `STAFF_ISSUES_${String(dist).replace(/\W+/g,'_')}_${S.year||CONFIG.YEAR}_${todayStr()}.xlsx`.replace(/\//g,'-'));
-  logExport('Staff issues','Region',new Set(rows.map(r=>r['EMIS Code'])).size,rows.length); }
+  logExport('Staff issues','Region',nSchools||new Set(rows.map(r=>r['EMIS Code'])).size,rows.length); }
+// one-row staff-issues template ("Passed away · Teaching · Male" …): add up the schools' answers → the Region's template
+function siColsOf(spec){ const out=[]; (spec.inputs||[]).forEach(it=>{ const p=String(it.label||'').split('·').map(x=>x.trim()); if(p.length<3) return;
+    const iss=SI_ISSUES.findIndex(x=>nk(x[0])===nk(p[0])||x[2].test(p[0])), cat=/non/i.test(p[1])?'n':/teach/i.test(p[1])?'t':'', g=/female/i.test(p[2])?'f':/male/i.test(p[2])?'m':'';
+    if(iss>=0&&cat&&g) out.push({ref:it.ref, iss, k:cat+g}); }); return out.length>=8?out:null; }
+async function siFromOneRow(spec, items){ const cols=siColsOf(spec); if(!cols) throw new Error('This template does not have the staff-issues columns.');
+  const mx=SI_ISSUES.map(([k])=>({k,tm:0,tf:0,nm:0,nf:0,t:0,u:0}));
+  items.forEach(it=>cols.forEach(c=>{ const n=Number(String(it.A[c.ref]??'').trim())||0; mx[c.iss][c.k]+=n; mx[c.iss].t+=n; }));
+  let rows=[]; try{ await recLoad('StaffIssues'); const set=new Set(items.map(i=>String(i.school['EMIS Code']))); rows=(S.rec.StaffIssues||[]).filter(r=>set.has(String(r['EMIS Code']))); }catch(e){}
+  await siDownload(rows, mx, items.length); return {mx, names:rows.length}; }
 // add form: pick a name from the school's staff list to fill the rest
 async function siPickHook(){ const nm=$('#rf [data-f="Full Name"]'); if(!nm) return; let L=[];
   try{ await recLoad('SchoolStaff'); const e=S.user.role==='SCHOOL'?S.user.emis:(($('#rfS')||{}).value||''); L=(S.rec.SchoolStaff||[]).filter(r=>!e||String(r['EMIS Code'])===String(e)); }catch(x){ return; }
@@ -5206,10 +5237,14 @@ const taskById = id => S.data.tasks.find(t=>t['Task ID']===id);
 function taskDone(t){ const id=t['Task ID'], k=taskKind(t), D=new Set();
   S.data.submissions.forEach(x=>{ if(x['Task ID']===id) D.add(String(x['EMIS Code']).trim()); });
   if(k==='form:template') (((S.data.tplDone||{})[id])||((S.tplDone||{})[id])||[]).forEach(e=>D.add(String(e).trim()));
+  if(k==='form:tab'){ const m=tabOfTask(t); (S.rec[m]||[]).filter(r=>!r.Year||String(r.Year)===String(S.year||CONFIG.YEAR)).forEach(r=>D.add(String(r['EMIS Code']).trim()));
+    (S.receipts||[]).filter(r=>r.Module===m&&String(r.Year||'')===String(S.year||CONFIG.YEAR)).forEach(r=>D.add(String(r['EMIS Code']).trim())); }
   if(k==='form:SchoolReturn'&&S.rec.SchoolReturn) S.rec.SchoolReturn.filter(r=>String(r.Year)===String(S.year||CONFIG.YEAR)).forEach(r=>D.add(String(r['EMIS Code']).trim()));
   return D; }
 // online-form answer lists for template requests (old Code.gs without tplDone in staffData): fetch once, then redraw
-async function loadTplDone(){ if(S.data.tplDone||S._tplLoading) return; const ids=S.data.tasks.filter(t=>taskKind(t)==='form:template'&&!(S.tplDone||{})[t['Task ID']]).map(t=>t['Task ID']); if(!ids.length) return;
+async function loadTabDone(){ const mods=[...new Set(S.data.tasks.filter(t=>taskKind(t)==='form:tab').map(tabOfTask).filter(m=>m&&MODS[m]&&!S.rec[m]))]; if(!mods.length||S._tabLoading) return;
+  S._tabLoading=true; for(const m of mods){ try{ await recLoad(m); }catch(e){} } try{ await loadReceipts(); }catch(e){} S._tabLoading=false; if(['tasks','comp','home'].includes(S.tab)) renderStaff(); }
+async function loadTplDone(){ loadTabDone(); if(S.data.tplDone||S._tplLoading) return; const ids=S.data.tasks.filter(t=>taskKind(t)==='form:template'&&!(S.tplDone||{})[t['Task ID']]).map(t=>t['Task ID']); if(!ids.length) return;
   S._tplLoading=true; S.tplDone=S.tplDone||{};
   for(const id of ids){ try{ S.tplDone[id]=(await api('tplResponses',{taskId:id})).map(r=>String(r['EMIS Code']).trim()); }catch(e){ S.tplDone[id]=[]; } }
   S._tplLoading=false; if(['tasks','comp','home'].includes(S.tab)) renderStaff(); }
@@ -5531,7 +5566,7 @@ function vComp(){
   $$('[data-m]').forEach(b=>b.onclick=()=>{ c.missing=b.dataset.m==='1'; vComp(); });
 }
 function taskRespModal(id){ const t=taskById(id); if(taskKind(t)==='form:template') return tplResponsesModal(id);
-  const P=taskProgress(t), all=P.rows.map(r=>r.s), st={miss:true}, link=baseUrl()+'?submit='+encodeURIComponent(id);
+  const P=taskProgress(t), all=P.rows.map(r=>r.s), st={miss:true}, link=taskLink(t);
   const sort=(a,b)=>canonCircuit(a.s.Circuit).localeCompare(canonCircuit(b.s.Circuit))||String(a.s['School Name']).localeCompare(b.s['School Name']);
   openModal(`<h3>${esc(t.Title)}</h3><p class="muted small">${P.done} of ${P.total} schools have answered · ${scopeText()}${t['Due Date']?' · deadline '+esc(waDeadline(t)):''}</p>
     ${P.total?'':`<div class="banner warn">No school in the list matches this request (${esc(t.Levels||'All')}${t.Ownership&&t.Ownership!=='All'?' · '+esc(audLabel(t)):''}). For SHS/SHTS requests, check that the second cycle schools were imported under List of Schools ▸ Import school list and their Level says SHS or SHTS.</div>`}
@@ -5548,8 +5583,7 @@ function taskRespModal(id){ const t=taskById(id); if(taskKind(t)==='form:templat
 }
 function copyDefaulters(done){
   const t=taskById(S.comp.task), P=taskProgress(t), all=P.rows.map(r=>r.s), list=P.rows.filter(r=>done?r.ok:!r.ok).map(r=>r.s);
-  const link=taskKind(t)==='form:template'?tplLink(t['Task ID']):baseUrl()+'?submit='+encodeURIComponent(t['Task ID']);
-  waListModal(t, list, all, done?'done':'remind', link);
+  waListModal(t, list, all, done?'done':'remind', taskLink(t));
 }
 function exportComp(){
   const t=taskById(S.comp.task);
@@ -5569,13 +5603,22 @@ function vTasks(){
         <td class="num">${p.done} / ${p.total}</td><td>${pill(t.Status)}</td>
         <td><div class="fact"><button class="btn sm" onclick="taskModal('${esc(t['Task ID'])}')">Edit</button>
           <button class="btn sm" onclick="toggleTask('${esc(t['Task ID'])}')">${t.Status==='Open'?'Close':'Reopen'}</button>
-          ${t.Status==='Open'?`<button class="btn sm" onclick="copyUploadLink('${esc(t['Task ID'])}')" title="Link heads can use without a password">🔗 Upload link</button>`:''}
+          <button class="btn sm danger" onclick="deleteTaskModal('${esc(t['Task ID'])}')" title="Delete this request">Delete</button>
+          ${t.Status==='Open'?`<button class="btn sm" onclick="copyUploadLink('${esc(t['Task ID'])}')" title="Link heads can use without a password">🔗 ${taskKind(t)==='upload'?'Upload link':'Form link'}</button>`:''}
           ${t['Template Name']?`<button class="btn sm" onclick="dlTemplate('${esc(t['Task ID'])}')">⬇ Template</button>`:''}
           <button class="btn sm ${p.done?'primary':''}" onclick="taskRespModal('${esc(t['Task ID'])}')" title="Who has answered · WhatsApp reminder">📋 Responses <b>${p.done}/${p.total}</b></button>
           ${S.data.submissions.some(s=>s['Task ID']===t['Task ID']&&isXl(s))?`<button class="btn sm" onclick="fillAllModal('${esc(t['Task ID'])}')" title="Read every school's Excel file into a tab">📊 Fill tab from files</button>`:''}
           ${DEMO?'':`<button class="btn sm" onclick="openFolder('${esc(t['Task ID'])}')">Drive folder</button>`}</div></td></tr>`; }).join('')}
       </tbody></table>`:'<div class="empty">No requests yet. Click <b>New request</b> to ask schools for files.</div>'}</div></div>`;
 }
+function deleteTaskModal(id){ const t=taskById(id), n=S.data.submissions.filter(x=>x['Task ID']===id).length, a=((S.data.tplDone||{})[id]||(S.tplDone||{})[id]||[]).length;
+  openModal(`<h3>Delete this request?</h3><p><b>${esc(t.Title)}</b> <span class="muted small">${esc(id)}</span></p>
+    <div class="banner ${n||a?'bad':''}">${n||a?`Schools have already answered it: <b>${n}</b> uploaded file(s)${a?`, <b>${a}</b> online answer(s)`:''}. These are deleted too (uploaded files go to the Google Drive bin and can be restored there for 30 days).`:'No school has answered it yet.'} Data already saved in tabs (e.g. Staff issues, Staff list) is <b>not</b> touched.</div>
+    <p class="small muted">To stop schools answering but keep everything, use <b>Close</b> instead.</p>
+    <div class="err" id="dtErr"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" id="dtGo">Delete request</button></div>`);
+  $('#dtGo').onclick=async()=>{ const b=$('#dtGo'); b.disabled=true; b.innerHTML='<span class="spin"></span> Deleting…';
+    try{ await api('deleteTask',{id}); S.data.tasks=S.data.tasks.filter(x=>x['Task ID']!==id); S.data.submissions=S.data.submissions.filter(x=>x['Task ID']!==id); closeModal(); renderStaff(); toast('Request deleted.'); }
+    catch(e){ $('#dtErr').textContent=e.message; b.disabled=false; b.textContent='Delete request'; } }; }
 function taskModal(id){
   const bt=!id&&S._builtTpl?S._builtTpl:null;
   const t=id?taskById(id):(bt?{Title:S._builtTitle||'',Levels:'All','Allowed Types':'excel',Status:'Open','Max Files':'1',Kind:'form:template'}:{Levels:'All','Allowed Types':'excel,pdf',Status:'Open','Max Files':''});
@@ -5595,7 +5638,7 @@ function taskModal(id){
       <label class="f">Status</label><select class="inp" id="tStat"><option ${t.Status==='Open'?'selected':''}>Open</option><option ${t.Status==='Closed'?'selected':''}>Closed</option></select>
       <div class="grid2">
         <div><label class="f">Which schools (type)</label><select class="inp" id="tOwn">${AUDS.map(([o,l])=>`<option value="${o}" ${(t.Ownership||'All')===o?'selected':''}>${l}</option>`).join('')}</select></div>
-        <div><label class="f">How schools answer</label><select class="inp" id="tKind">${[['upload','Upload a file'],['form:template','Online form built from the attached Excel template (heads can also upload it)'],['form:SchoolReturn','Online form: Regional enrolment & school information'],['form:Officers',"Online form: Education officers' data"]].map(([v,l])=>`<option value="${v}" ${(t.Kind||'upload')===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>
+        <div><label class="f">How schools answer</label><select class="inp" id="tKind">${[['upload','Upload a file'],['form:template','Online form built from the attached Excel template (heads can also upload it)'],['form:SchoolReturn','Online form: Regional enrolment & school information'],['form:Officers',"Online form: Education officers' data"],['form:tab','Online form: a portal data tab (e.g. Staff issues) — no password']].map(([v,l])=>`<option value="${v}" ${(t.Kind||'upload')===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>
       </div>
       <div id="tFillBox">
       <label class="f">When a school uploads its Excel file, also fill these tabs <span class="muted small">(tick all that the template contains)</span></label>
@@ -5604,6 +5647,8 @@ function taskModal(id){
         ${Object.keys(FORMS).filter(k=>XL[k]).map(k=>`<label><input type="checkbox" value="${k}" data-fl ${fillsOf(t).includes(k)?'checked':''}> ${esc(FORMS[k])}</label>`).join('')}</div>
       <div class="small muted">Leave all unticked to just keep the file. Schools upload the template for those tabs (yours from Tasks ▸ Official Excel templates, or the portal's). With the Regional template ticked, don't also tick Enrolment, Furniture, Classrooms or Projects.</div>
       </div>
+      <div id="tTabBox" class="banner" style="margin-top:10px">📋 <b>Online form from a portal tab.</b> Heads open the tab's own form with the link (EMIS code + school phone, no password), fill it online or upload the tab's Excel template, and get a receipt. No template needs to be attached.
+        <label class="f">Which tab</label><select class="inp" id="tTab">${Object.keys(FORMS).filter(k=>MODS[k]&&MODS[k].who==='school'&&k!=='Enrolment').map(k=>`<option value="${k}" ${tabOfTask(t)===k?'selected':''}>${esc(FORMS[k])}</option>`).join('')}</select></div>
       <div id="tTplBox" class="banner" style="margin-top:10px">📝 <b>Online form from your template.</b> Attach the Excel template below. The portal turns its answer boxes (unlocked cells of a protected sheet, with their drop-down lists) into an online form; heads can also upload the filled template. You download each school's filled file, or all schools in one file.
         <div class="checks" style="margin-top:8px"><label><input type="checkbox" id="tOptPre" ${tplOpts(t).includes('enrol-prefill')?'checked':''}> Pre-fill enrolment boxes from the Enrolment tab</label><label><input type="checkbox" id="tOptSync" ${tplOpts(t).includes('enrol-sync')?'checked':''}> Enrolment the school submits updates its Enrolment tab (current round)</label></div>
         <div class="small muted">Untick both for a past year (e.g. GSFP 2025/2026). Tick both for this year's returns (e.g. Second cycle enrolment).</div></div>
@@ -5616,7 +5661,7 @@ function taskModal(id){
     </form>`);
   $$('[data-lv]').forEach(c=>c.onchange=()=>{ if(c.value==='All'&&c.checked) $$('[data-lv]').forEach(x=>{ if(x!==c) x.checked=false; }); else if(c.checked) $('[data-lv][value="All"]').checked=false; });
   $$('[data-ty]').forEach(c=>c.onchange=()=>{ if(c.value==='any'&&c.checked) $$('[data-ty]').forEach(x=>{ if(x!==c) x.checked=false; }); else if(c.checked) $('[data-ty][value="any"]').checked=false; });
-  const syncKind=()=>{ $('#tFillBox').style.display=$('#tKind').value==='upload'?'':'none'; $('#tTplBox').style.display=$('#tKind').value==='form:template'?'':'none'; }; $('#tKind').onchange=syncKind; syncKind();
+  const syncKind=()=>{ $('#tFillBox').style.display=$('#tKind').value==='upload'?'':'none'; $('#tTplBox').style.display=$('#tKind').value==='form:template'?'':'none'; $('#tTabBox').style.display=$('#tKind').value==='form:tab'?'':'none'; }; $('#tKind').onchange=syncKind; syncKind();
   const RET4=['Enrolment','Furniture','Classrooms','Projects'];
   $$('[data-fl]').forEach(c=>c.onchange=()=>{ if(c.value==='SchoolReturn'&&c.checked) $$('[data-fl]').forEach(x=>{ if(RET4.includes(x.value)) x.checked=false; }); else if(RET4.includes(c.value)&&c.checked) $('[data-fl][value="SchoolReturn"]').checked=false; });
   $('#tf').onsubmit=async e=>{
@@ -5632,7 +5677,7 @@ function taskModal(id){
     if(tf&&tf.size>CONFIG.MAX_FILE_MB*1048576){ $('#terr').textContent='The template is larger than '+CONFIG.MAX_FILE_MB+' MB.'; $('#tb').disabled=false; return; }
     $('#tb').innerHTML='<span class="spin"></span> Saving…';
     try{ const useBt=bt&&!tf&&!($('#tBtOff')&&$('#tBtOff').checked); const template=tf?{name:tf.name, mime:tf.type, data:await readB64(tf)}:useBt?{name:bt.name,mime:bt.mime,data:bt.data}:null;
-      await api('saveTask',{task:{'Task ID':id||'',Title:$('#tTitle').value,Description:$('#tDesc').value,Levels:levels.join(','),'Allowed Types':types.join(','),'Due Date':$('#tDue').value,'Max Files':$('#tMax').value,Status:$('#tStat').value,'Fills Tab':$('#tKind').value==='upload'?$$('[data-fl]:checked').map(x=>x.value).join(','):'',Kind:$('#tKind').value,Ownership:$('#tOwn').value,Options:[$('#tOptPre').checked?'enrol-prefill':'',$('#tOptSync').checked?'enrol-sync':''].filter(Boolean).join(',')}, template, removeTemplate:!!($('#tRm')&&$('#tRm').checked)});
+      await api('saveTask',{task:{'Task ID':id||'',Title:$('#tTitle').value,Description:$('#tDesc').value,Levels:levels.join(','),'Allowed Types':types.join(','),'Due Date':$('#tDue').value,'Max Files':$('#tMax').value,Status:$('#tStat').value,'Fills Tab':$('#tKind').value==='upload'?$$('[data-fl]:checked').map(x=>x.value).join(','):'',Kind:$('#tKind').value,Ownership:$('#tOwn').value,Options:[$('#tOptPre').checked?'enrol-prefill':'',$('#tOptSync').checked?'enrol-sync':'',$('#tKind').value==='form:tab'?'tab:'+$('#tTab').value:''].filter(Boolean).join(',')}, template, removeTemplate:!!($('#tRm')&&$('#tRm').checked)});
       closeModal(); if(!id) S._builtTpl=null; toast(id?'Request updated.':'Request created — schools can now upload.'); loadStaff(true); }
     catch(err){ $('#terr').textContent=err.message; $('#tb').disabled=false; $('#tb').textContent=id?'Save changes':'Create request'; }
   };
@@ -5903,8 +5948,8 @@ const Mock = (() => {
   const OWNM=s=>{ const o=String(s.Ownership||'').toLowerCase(); return /priv/.test(o)?'Private':/pub|gov/.test(o)?'Public':''; };
   const mkReceipt=(who,m,sch,at,none,decl)=>{ const rows=REC[m].filter(x=>x['EMIS Code']===sch['EMIS Code']&&(!x.Year||x.Year===YR)&&(m!=='Enrolment'||x.Period===CUR)); if(!rows.length&&!none) throw new Error('NOTHING_ENTERED');
     const c='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let t=''; for(let k=0;k<5;k++) t+=c[Math.floor(Math.random()*c.length)];
-    const r={'Receipt No':'AAN-'+iso(at).slice(2,10).replace(/-/g,'')+'-'+t,Module:m,Form:FORMS[m]+(m==='Enrolment'?' – '+CUR:''),Year:YR,Period:m==='Enrolment'?CUR:'','EMIS Code':sch['EMIS Code'],'School Name':sch['School Name'],Circuit:sch.Circuit,'Submitted By':who,Role:'SCHOOL','Submitted At':iso(at),Records:rows.length,Summary:JSON.stringify(rows.length?SUMM[m](rows):[['Records (none to report)',0]])};
-    if(rows.length) Object.assign(r,chkDecl(m,SUMM[m](rows),decl));
+    const r={'Receipt No':'AAN-'+iso(at).slice(2,10).replace(/-/g,'')+'-'+t,Module:m,Form:FORMS[m]+(m==='Enrolment'?' – '+CUR:''),Year:YR,Period:m==='Enrolment'?CUR:'','EMIS Code':sch['EMIS Code'],'School Name':sch['School Name'],Circuit:sch.Circuit,'Submitted By':who,Role:'SCHOOL','Submitted At':iso(at),Records:rows.length,Summary:JSON.stringify(rows.length?(SUMM[m]||(r=>[["Records",r.length]]))(rows):[['Records (none to report)',0]])};
+    if(rows.length) Object.assign(r,chkDecl(m,(SUMM[m]||(r=>[["Records",r.length]]))(rows),decl));
     RCPT.push(r); return r; };
   schools.forEach((sch,i)=>DFORMS.forEach((m,j)=>{ if((i+j)%3===0) return; try{ mkReceipt(sch['Head Name'],m,sch,now-ri(1,15)*day); }catch(e){} }));
   const MODSCOPE={StaffIssues:'school',Spare1:'school',Spare2:'school',Spare3:'school',SchoolReturn:'school',Officers:'dir',Students:'school',Transfers:'school',SpecialNeeds:'school',Scholarships:'school',BECE:'school',Enrolment:'school',SchoolStaff:'school',SHSStaff:'school',DirStaff:'dir',Furniture:'school',Classrooms:'school',Bungalows:'school',Projects:'optional',Updates:'dir'};
@@ -5999,6 +6044,11 @@ const Mock = (() => {
       files[id]={data:req.data,mime:req.mimeType}; return cp(subs[subs.length-1]); },
     deleteMySubmission:req=>{ const s=need(req,['SCHOOL']); const i=subs.findIndex(x=>x['Submission ID']===req.id&&x['EMIS Code']===s.emis);
       if(i<0) throw new Error('File not found.'); if(subs[i].Status==='Accepted') throw new Error('Accepted files cannot be deleted.'); subs.splice(i,1); return true; },
+    tabStart:req=>{ const sch=schools.find(x=>x['EMIS Code']===String(req.emis||'').trim()); const dg=v=>String(v||'').replace(/\D/g,'').slice(-9);
+      if(!sch) throw new Error('We could not find a school with that EMIS code. Check the number and try again.'); if(dg(sch.Phone)&&dg(req.phone)!==dg(sch.Phone)) throw new Error('The phone number does not match the one the EMIS Office has for this school.');
+      const token='Q'+Math.random().toString(36).slice(2); sess[token]={kind:'school',role:'SCHOOL',id:sch['EMIS Code'],emis:sch['EMIS Code'],name:sch['School Name'],circuit:sch.Circuit,level:sch.Level,head:req.name,quickTab:req.module};
+      return {token,user:{role:'SCHOOL',id:sch['EMIS Code'],emis:sch['EMIS Code'],name:sch['School Name'],circuit:sch.Circuit,level:sch.Level,head:req.name,quickTab:req.module},year:YR}; },
+    deleteTask:req=>{ need(req,['ADMIN','EMIS_OFFICER']); const i=tasks.findIndex(x=>x['Task ID']===req.id); if(i<0) throw new Error('Request not found.'); tasks.splice(i,1); const n=subs.filter(x=>x['Task ID']===req.id).length; for(let k=subs.length-1;k>=0;k--) if(subs[k]['Task ID']===req.id) subs.splice(k,1); return {files:n}; },
     spareTabs:req=>{ need(req); return cp(SPARE); },
     spareSave:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER']); if(!/^Spare[123]$/.test(req.key)) throw new Error('Unknown tab.'); if(req.cfg) SPARE[req.key]=cp(req.cfg); else delete SPARE[req.key]; return cp(SPARE); },
     tplPhoto:req=>{ if(!req.data||req.data.length>420000) throw new Error('The photo is too large.'); const id='PH'+Math.random().toString(36).slice(2,10); (A._ph=A._ph||{})[id]=req.data; return {id}; },
@@ -6142,7 +6192,7 @@ const Mock = (() => {
     review:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER','CIRCUIT_SUPERVISOR']); const r=subs.find(x=>x['Submission ID']===req.id); if(!r||!scope(s,r)) throw new Error('File not found.');
       Object.assign(r,{Status:req.status,Remark:req.remark||'',Reviewer:s.name,'Reviewed At':iso(Date.now())}); return true; },
     saveTask:req=>{ const s=need(req,['ADMIN','EMIS_OFFICER']); const t=req.task; if(!String(t.Title||'').trim()) throw new Error('Give the request a title.');
-      t['Fills Tab']=fillsM(t).join(','); t.Kind=['upload','form:SchoolReturn','form:Officers','form:template'].includes(t.Kind)?t.Kind:'upload'; t.Ownership=AUDS.some(a=>a[0]===t.Ownership)?t.Ownership:'All';
+      t['Fills Tab']=fillsM(t).join(','); t.Kind=['upload','form:SchoolReturn','form:Officers','form:template','form:tab'].includes(t.Kind)?t.Kind:'upload'; t.Ownership=AUDS.some(a=>a[0]===t.Ownership)?t.Ownership:'All';
       const tp=req.template&&req.template.data?{'Template Name':req.template.name,'Template File ID':'tpl'}:req.removeTemplate?{'Template Name':'','Template File ID':''}:null;
       if(tp&&tp['Template Name']&&t['Task ID']) TPL[t['Task ID']]={name:req.template.name,mime:req.template.mime,data:req.template.data};
       const data={'Fills Tab':t['Fills Tab']||'',Kind:t.Kind,Ownership:t.Ownership,Options:t.Options||'',Title:t.Title.trim(),Description:t.Description||'',Levels:t.Levels||'All','Allowed Types':t['Allowed Types']||'any','Max Files':Number(t['Max Files'])||0,'Due Date':t['Due Date']||'',Status:t.Status};
@@ -6206,6 +6256,7 @@ function applyDeep(){
   if(qp.has('pioneers')){ try{ history.replaceState(null,'',baseUrl()); }catch(e){} S.token=null; renderLogin(); openPioneerForm(); return; }
   if(qp.has('officer')){ try{ history.replaceState(null,'',baseUrl()); }catch(e){} S.token=null; renderLogin(); openOfficerForm(); return; }
   if(qp.has('status')){ try{ history.replaceState(null,'',baseUrl()); }catch(e){} S.token=null; renderLogin(); statusModal(); return; }
+  if(qp.has('fill')){ const m=qp.get('fill'); try{ history.replaceState(null,'',baseUrl()); }catch(e){} S.token=null; renderLogin(); openTabLink(m); return; }
   if(qp.has('submit')){ const id=qp.get('submit'); try{ history.replaceState(null,'',baseUrl()); }catch(e){} S.token=null; renderLogin(); openWizard(id||''); return; }
   const saved = DEMO ? null : load('fp_session');   // demo data resets on reload, so demo sessions do too
   if(saved && saved.token && !S.verify){ S.token=saved.token; S.user=saved.user; S.mustChange=saved.mustChange; S.mustSetPin=!!saved.mustSetPin; if(S.deep) applyDeep(); boot(); }
