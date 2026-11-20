@@ -4613,7 +4613,7 @@ function vRegReturn(){ modView(['SchoolReturn','Enrolment'],()=>{
   const all2=items.map(i=>i.r), t=k=>all2.reduce((a,r)=>a+(Number(r[k])||0),0), m=can.manage(S.user.role);
   const byC=circuits().map(c=>{ const n=basic.filter(s=>canonCircuit(s.Circuit)===c).length, d=basic.filter(s=>canonCircuit(s.Circuit)===c&&done.has(String(s['EMIS Code']))).length; return {c,n,d}; });
   $('#view').innerHTML=`<div class="page-h"><div><h2>Regional enrolment &amp; school information</h2><p>${esc(S.year||CONFIG.YEAR)} · Term ${esc(term)} · ${scopeText()}</p></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${m?`<label class="btn primary">⬆ Import schools' Regional files<input type="file" id="rtImp" accept=".xlsx,.xlsm" multiple class="hidden"></label>`:''}<button class="btn" id="rtLink">🔗 Copy form link for WhatsApp</button><button class="btn" onclick="refreshMods(['SchoolReturn'])">Refresh</button></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${m?`<label class="btn primary">⬆ Import schools' files (Regional, second cycle, private)<input type="file" id="rtImp" accept=".xlsx,.xlsm" multiple class="hidden"></label>`:''}<button class="btn" id="rtLink">🔗 Copy form link for WhatsApp</button><button class="btn" onclick="refreshMods(['SchoolReturn'])">Refresh</button></div></div>
     <div class="banner" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">📊 Enrolment figures come from the <b>Enrolment tab</b>, so they are the same whether a school used the Regional form, the Excel template or typed them in. <label style="margin-left:auto"><input type="checkbox" id="rtEnOnly" ${inc?'checked':''}> include schools that sent enrolment only (${basic.filter(s=>!formDone.has(String(s['EMIS Code']))&&EN[String(s['EMIS Code'])]).length})</label>${m?'<button class="btn sm" id="rtSync" title="Write the Enrolment tab figures into every Regional form record">↻ Re-sync stored forms</button>':''}</div>
     ${kpis([['Schools with enrolment',`${done.size} / ${basic.length}`,'',`Regional form ${formDone.size} · enrolment only ${enOnly.length}`],['Total enrolment',t('Total Enrolment').toLocaleString()],['Boys',t('Boys').toLocaleString()],['Girls',t('Girls').toLocaleString()],['KG / Primary / JHS',`${t('KG Total').toLocaleString()} / ${t('Primary Total').toLocaleString()} / ${t('JHS Total').toLocaleString()}`],['Permanent classrooms',t('Permanent Classrooms').toLocaleString()]])}
     <div class="card accent" style="margin-bottom:18px"><div class="card-h">${secT('Send to the Region','Built from the schools\' answers, in the Region\'s own format')}</div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -4646,14 +4646,37 @@ function vRegReturn(){ modView(['SchoolReturn','Enrolment'],()=>{
   $$('[data-rtd]').forEach(b=>b.onclick=()=>{ openModal(`<h3>Delete this school's return?</h3><p class="muted">The school can submit again afterwards. Its Enrolment tab is not changed.</p><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" id="rtdy">Delete</button></div>`);
     $('#rtdy').onclick=async()=>{ try{ await api('recDelete',{module:'SchoolReturn',id:b.dataset.rtd}); closeModal(); await recLoad('SchoolReturn',true); vRegReturn(); toast('Deleted.'); }catch(e){ toast(e.message,true); } }; });
 }); }
+// another Region template (second cycle, private schools…): saved as the answer to the open request built from that template; otherwise its enrolment goes to the Enrolment tab
+const tplSig = (wb, sheet) => { const ws=wb.Sheets[sheet]; if(!ws) return []; const o=[]; for(let r=1;r<=80;r++){ const c=ws['B'+r]; if(c&&typeof c.v==='string'&&c.v.trim()) o.push(r+':'+nk(c.v)); } return o; };
+async function importOtherTemplate(wb, fname){
+  const name=(S.user.name||'')+' (EMIS Office, from '+String(fname).slice(0,40)+')';
+  for(const t of S.data.tasks.filter(x=>taskKind(x)==='form:template'&&x.Status==='Open')){
+    let spec; try{ spec=await tplSpec(t['Task ID']); }catch(e){ continue; }
+    const a=tplSig(spec.wb, spec.sheet), b=new Set(tplSig(wb, spec.sheet)); if(a.length<5||a.filter(x=>b.has(x)).length<a.length*0.8) continue;
+    const em=spec.inputs.find(it=>/emis/i.test(it.label)&&!/mmde|office/i.test(it.label)), ws=wb.Sheets[spec.sheet], fe=em?String(((ws[em.ref]||{}).v)??'').replace(/\s/g,''):'';
+    if(!fe) throw new Error(`Matches the request “${t.Title}”, but no School EMIS Code is typed in the file. Open 📋 Responses ▸ Fill for the school and upload it there.`);
+    const sch=S.data.schools.find(x=>String(x['EMIS Code']).trim()===fe); if(!sch) throw new Error(`EMIS code ${fe} is not in the school list.`);
+    const A=tplFromWorkbook(spec, wb, fe); const D={school:sch,office:(S.data&&S.data.office)||{},year:S.year,enrol:[]}, pf=tplPrefill(spec,D); Object.keys(pf.lock).forEach(k=>{ A[k]=pf.A[k]; });
+    const ans={}; spec.inputs.forEach(it=>{ const v=String(A[it.ref]??'').trim(); if(v!=='') ans[it.ref]=it.type==='tel'?phone10(v):v; });
+    const enrol=tplEnrol(spec,ans), r=await api('tplSubmit',{taskId:t['Task ID'], emis:fe, answers:ans, enrol, route:'excel', name});
+    (S.tplDone=S.tplDone||{})[t['Task ID']]=[...new Set([...(S.tplDone[t['Task ID']]||[]),fe])];
+    return {school:sch, msg:`Saved as the answer to “${esc(t.Title)}” · ${esc((r.receipt||{})['Receipt No']||'')}${r.enrolRows?` · ${r.enrolRows} class(es) to Enrolment`:tplOpts(t).includes('enrol-sync')?'':' · (that request does not update the Enrolment tab)'}`}; }
+  const P=enrolFromLayout(wb, ''); if(!P||!P.rows.length) throw new Error('This file is not a Regional template the portal knows, and no enrolment was found in it.');
+  const fe=String((P.rows[0]||{})['EMIS Code']||''); if(!fe) throw new Error('Enrolment found, but no School EMIS Code is typed in the file.');
+  const sch=S.data.schools.find(x=>String(x['EMIS Code']).trim()===fe); if(!sch) throw new Error(`EMIS code ${fe} is not in the school list.`);
+  await api('recSaveMany',{module:'Enrolment', replace:true, period:curPeriod(), rows:P.rows.map(r=>({'EMIS Code':fe,Year:S.year||CONFIG.YEAR,Period:curPeriod(),Class:r.Class,Stream:'',Boys:r.Boys,Girls:r.Girls}))});
+  return {school:sch, msg:`No open request uses this template, so its enrolment (${P.rows.length} class(es): ${P.rows.map(r=>CLASS_LABEL(r.Class)).join(', ')}) was saved to the Enrolment tab (${esc(curPeriod())}).`}; }
 // EMIS Office: files heads sent on WhatsApp etc. Each file is read, matched to its school by the EMIS code typed in it, and submitted for that school
 async function retImportModal(files){
-  openModal(`<h3>Import schools' Regional files</h3><p class="muted small">Each file is matched to its school by the EMIS code typed in it (FORM ▸ C6), then submitted for that school — as if the head had submitted it. The Enrolment tab is updated too. A school that already submitted is updated.</p>
+  openModal(`<h3>Import schools' files</h3><p class="muted small">Each file is matched to its school by the EMIS code typed in it. <b>Regional basic template</b> → submitted as the school's Regional return. <b>Second cycle, private schools or another template</b> → saved as the school's answer to the open request built from that template (its 📋 Responses). If no request uses it, its enrolment goes to the Enrolment tab. A school that already sent it is updated.</p>
     <div class="tbl-wrap" style="max-height:52vh;overflow:auto"><table class="t sm"><thead><tr><th>File</th><th>School</th><th>Result</th></tr></thead><tbody>${files.map((f,i)=>`<tr><td class="small">${esc(f.name)}</td><td id="ri${i}s" class="small">…</td><td id="ri${i}" class="small"><span class="spin"></span></td></tr>`).join('')}</tbody></table></div>
     <div class="modal-actions"><button class="btn primary" id="riDone" disabled>Working…</button></div>`); $('#modalCard').classList.add('wide');
   let ok=0;
   for(let i=0;i<files.length;i++){ const f=files[i], cs=$('#ri'+i+'s'), cr=$('#ri'+i);
-    try{ const A=retFromWorkbook(await xlRead(f)), fe=String(A.C6||'').replace(/\s/g,''); if(!fe) throw new Error('No School EMIS Code typed in the file (FORM ▸ C6). Use ✏ Correct for the school and upload it there.');
+    let wb=null;
+    try{ wb=await xlRead(f); let A; try{ A=retFromWorkbook(wb); }catch(e0){ if(!wb.Sheets.FORM&&!/^This is not the Regional template/.test(e0.message)) throw e0; const r=await importOtherTemplate(wb, f.name);
+        cs.innerHTML=`<b>${esc(r.school['School Name'])}</b><br>${esc(r.school['EMIS Code'])}`; cr.innerHTML=`<span style="color:var(--green)">✓ ${r.msg}</span>`; ok++; continue; }
+      const fe=String(A.C6||'').replace(/\s/g,''); if(!fe) throw new Error('No School EMIS Code typed in the file (FORM ▸ C6). Use ✏ Correct for the school and upload it there.');
       const sch=S.data.schools.find(x=>String(x['EMIS Code']).trim()===fe); if(!sch) throw new Error(`EMIS code ${fe} is not in the school list. Check the code, or use ✏ Correct for the right school and upload the file there.`);
       cs.innerHTML=`<b>${esc(sch['School Name'])}</b><br>${esc(fe)}`;
       const d=await api('returnStaffStart',{emis:fe}); if(!A.C7) A.C7=(d.answers&&d.answers.C7)||levelToTpl(sch.Level);
