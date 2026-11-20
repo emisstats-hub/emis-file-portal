@@ -552,6 +552,8 @@ table.rt.sm{margin-top:6px}.rt-tot td{background:#faf8f3;font-weight:700}
 .tp-phw{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}.tp-ph{position:relative;width:110px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f4f2ec}.tp-ph img{width:100%;height:100%;object-fit:cover}
 .tp-phx{position:absolute;top:3px;right:3px;border:0;border-radius:50%;width:22px;height:22px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:12px}.tp-phs{position:absolute;left:3px;bottom:3px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px}.tp-phb{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-basis:100%}
 .sp-row{display:grid;grid-template-columns:2fr 1.3fr 2fr auto auto;gap:6px;align-items:center;margin-bottom:6px}.sp-row .hidden{display:block;visibility:hidden}@media(max-width:640px){.sp-row{grid-template-columns:1fr 1fr}}
+.dt-lead{width:1%;white-space:nowrap}.dt-lead input{width:18px;height:18px;vertical-align:middle;margin-right:4px}.dt-lead .btn{padding:3px 8px}tr.dt-on td{background:#eef7f2}
+.dt-sel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:#faf8f3;border-top:1px solid var(--line);font-size:14px}.dt-sel.on{background:#e3f4ec}
 </style>
 </head>
 <body>
@@ -2083,6 +2085,8 @@ const RET_IN = ["C5", "C6", "C7", "C11", "C12", "C13", "C14", "C15", "C16", "C17
 // read the answers out of a filled Regional ENROLMENT template (FORM sheet)
 function retFromWorkbook(wb){
   const ws=wb.Sheets.FORM; if(!ws) throw new Error('This is not the Regional ENROLMENT AND SCHOOL INFORMATION template (no FORM sheet).');
+  const lab=r=>sval((ws['B'+r]||{}).v);
+  if((lab(32)&&!/kg\s*1/i.test(lab(32)))||(lab(37)&&!/(basic|b|primary|p)\s*1\b/i.test(lab(37)))) throw new Error('This is not the Regional template for public basic schools (its KG 1 / Basic 1 rows are in other places — e.g. the private schools or second cycle template). Use the request made for that template.');
   const A={}; RET_IN.forEach(ref=>{ const c=ws[ref]; if(c&&c.v!==''&&c.v!=null) A[ref]=c.v instanceof Date?c.v.toISOString().slice(0,10):String(c.v).trim(); });
   const any=[32,33,37,38,39,40,41,42,46,47,48].some(r=>A['C'+r]!==undefined||A['D'+r]!==undefined);
   if(!any) throw new Error('The Regional form was sent without any enrolment filled in (blank template).');
@@ -2496,19 +2500,48 @@ function pickSchool(title, fn){
 }
 
 /* ---- generic searchable table ---- */
+// opts: edit, filters, limit, select (tick rows → export), more (extra columns the user can show), exportCols, exportName
+const DT={};
+const dtId = r => r['Record ID']||(r['EMIS Code']+'|'+(r['Full Name']||r['Student Name']||r['Candidate Name']||''));
 function dataTable(key, rows, cols, opts={}){
-  S.tq=S.tq||{}; const q=(S.tq[key]||'').toLowerCase();
-  const list=q?rows.filter(r=>cols.map(c=>r[c.k]).concat([r['School Name'],r['Circuit'],r['EMIS Code']]).join(' ').toLowerCase().includes(q)):rows;
-  S['_t_'+key]=list;
-  return `<div class="card-h filters" style="border-bottom:0">${opts.filters||''}<input class="inp tq" data-tq="${key}" placeholder="Search…" value="${esc(S.tq[key]||'')}" style="flex:1;min-width:180px">
-      <span class="small muted">${list.length} of ${rows.length}</span></div>
-    <div class="tbl-wrap">${list.length?`<table class="t"><thead><tr>${cols.map(c=>`<th class="${c.num?'num':''}">${esc(c.h||c.k)}</th>`).join('')}${opts.edit?'<th></th>':''}</tr></thead><tbody>
-      ${list.slice(0,opts.limit||100).map(r=>`<tr>${cols.map(c=>`<td class="${c.num?'num':''} ${c.small?'small':''}">${c.v?c.v(r):cell(c.k,r)}</td>`).join('')}
-        ${opts.edit?`<td><button class="btn sm" data-ed="${esc(r['Record ID'])}">Edit</button></td>`:''}</tr>`).join('')}
-      </tbody></table>${list.length>(opts.limit||100)?`<div class="empty small">Showing the first ${opts.limit||100}. Search or export to see all.</div>`:''}`
+  S.tq=S.tq||{}; S.sel=S.sel||{}; S.colsOn=S.colsOn||{}; DT[key]={opts, rows};
+  const sel=S.sel[key]=S.sel[key]||new Set(), only=S['_only_'+key]&&sel.size, q=(S.tq[key]||'').toLowerCase();
+  const on=S.colsOn[key]||new Set(), extra=(opts.more||[]).filter(c=>on.has(c.k)), C=cols.concat(extra); DT[key].cols=C.map(c=>({k:c.k,h:c.h}));
+  let list=q?rows.filter(r=>C.map(c=>r[c.k]).concat([r['School Name'],r['Circuit'],r['EMIS Code']]).join(' ').toLowerCase().includes(q)):rows;
+  if(only) list=rows.filter(r=>sel.has(dtId(r)));
+  S['_t_'+key]=list; const lim=opts.limit||100, shown=list.slice(0,lim), allOn=list.length&&list.every(r=>sel.has(dtId(r)));
+  const lead=opts.select||opts.edit;
+  return `<div class="card-h filters" style="border-bottom:0">${opts.filters||''}<input class="inp tq" data-tq="${key}" placeholder="Search name, Staff ID, school…" value="${esc(S.tq[key]||'')}" style="flex:1;min-width:180px">
+      <span class="small muted">${list.length} of ${rows.length}</span>${(opts.more||[]).length?`<button type="button" class="btn sm" data-dtcols="${key}">⚙ Columns${extra.length?' ('+extra.length+')':''}</button>`:''}</div>
+    ${opts.select?`<div class="dt-sel" data-dtbar="${key}">${dtBarHTML(key)}</div>`:''}
+    <div class="tbl-wrap">${list.length?`<table class="t"><thead><tr>${lead?`<th class="dt-lead">${opts.select?`<input type="checkbox" data-dtall="${key}" ${allOn?'checked':''} title="Tick all ${list.length} shown by the search/filters">`:''}</th>`:''}${C.map(c=>`<th class="${c.num?'num':''}">${esc(c.h||c.k)}</th>`).join('')}</tr></thead><tbody>
+      ${shown.map(r=>`<tr class="${sel.has(dtId(r))?'dt-on':''}">${lead?`<td class="dt-lead">${opts.select?`<input type="checkbox" data-dtr="${key}" value="${esc(dtId(r))}" ${sel.has(dtId(r))?'checked':''}>`:''}${opts.edit&&r['Record ID']?`<button class="btn sm" data-ed="${esc(r['Record ID'])}" title="Edit">✏</button>`:''}</td>`:''}${C.map(c=>`<td class="${c.num?'num':''} ${c.small?'small':''}">${c.v?c.v(r):cell(c.k,r)}</td>`).join('')}</tr>`).join('')}
+      </tbody></table>${list.length>lim?`<div class="empty small">Showing the first ${lim} of ${list.length}. Search or filter to narrow down — “tick all” ticks all ${list.length}.</div>`:''}`
       :'<div class="empty">Nothing recorded yet.</div>'}</div>`;
 }
+function dtBarHTML(key){ const sel=(S.sel||{})[key]||new Set(), only=S['_only_'+key]&&sel.size;
+  return `<b>${sel.size}</b>&nbsp;selected${sel.size?` <button type="button" class="btn sm" data-dtonly="${key}">${only?'Show all':'Show only selected'}</button><button type="button" class="btn sm primary" data-dtx="${key}" data-f="xlsx">⬇ Excel</button><button type="button" class="btn sm" data-dtx="${key}" data-f="csv">⬇ CSV</button><button type="button" class="btn sm" data-dtx="${key}" data-f="print">🖨 Print / PDF</button><button type="button" class="btn sm" data-dtclr="${key}">Clear</button>`:` <span class="small muted">— tick staff in the list (search or filter first, across any schools), then download only those.</span>`}`; }
+function dtBarWire(key){ const sel=S.sel[key], bar=$(`[data-dtbar="${key}"]`); if(!bar) return; bar.classList.toggle('on',sel.size>0); bar.innerHTML=dtBarHTML(key);
+  $$(`[data-dtx="${key}"]`,bar).forEach(b=>b.onclick=()=>dtExport(key,b.dataset.f));
+  $$(`[data-dtclr="${key}"]`,bar).forEach(b=>b.onclick=()=>{ sel.clear(); S['_only_'+key]=false; S.rerender(); });
+  $$(`[data-dtonly="${key}"]`,bar).forEach(b=>b.onclick=()=>{ S['_only_'+key]=!S['_only_'+key]; S.rerender(); }); }
+function dtExport(key, fmt){ const d=DT[key]; if(!d) return; const sel=S.sel[key]||new Set(), rows=d.rows.filter(r=>sel.has(dtId(r)));
+  const cols=d.opts.exportCols||d.cols||[];
+  const H=cols.map(c=>c.h||c.k), V=rows.map(r=>cols.map(c=>c.csv?c.csv(r):(c.k==='Class'?CLASS_LABEL(r[c.k]):r[c.k]??''))), nm=(d.opts.exportName||key)+'_selected_'+todayStr();
+  if(fmt==='csv') return csv([H,...V], nm+'.csv');
+  if(fmt==='xlsx') return saveBlob(plainWorkbook(H,V,(d.opts.exportName||'Selected').slice(0,31)), nm+'.xlsx');
+  const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print.',true); return; }
+  w.document.write(`<html><head><title>${esc(nm)}</title><style>body{font:12px Arial;margin:18px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#eee}h2{font-size:15px}</style></head><body><h2>${esc(CONFIG.ORG_NAME||'')} — ${esc(d.opts.exportName||'Selected records')} (${rows.length})</h2><table><tr><th>#</th>${H.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>${V.map((r,i)=>`<tr><td>${i+1}</td>${r.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</table><script>setTimeout(()=>print(),300)<\/script></body></html>`); w.document.close(); }
 function wireTable(key, mod){
+  const sel=(S.sel=S.sel||{})[key]=(S.sel[key]||new Set()), d=DT[key];
+  $$(`[data-dtr="${key}"]`).forEach(c=>c.onchange=()=>{ c.checked?sel.add(c.value):sel.delete(c.value); c.closest('tr').classList.toggle('dt-on',c.checked); dtBarWire(key); });
+  const all=$(`[data-dtall="${key}"]`); if(all) all.onchange=()=>{ (S['_t_'+key]||[]).forEach(r=>all.checked?sel.add(dtId(r)):sel.delete(dtId(r))); $$(`[data-dtr="${key}"]`).forEach(c=>{ c.checked=all.checked; c.closest('tr').classList.toggle('dt-on',all.checked); }); dtBarWire(key); };
+  dtBarWire(key);
+  $$(`[data-dtcols="${key}"]`).forEach(b=>b.onclick=()=>{ const on=(S.colsOn=S.colsOn||{})[key]=(S.colsOn[key]||new Set()), M=(d&&d.opts.more)||[];
+    openModal(`<h3>Show more columns</h3><p class="muted small">Tick the columns to add to the table. Downloads of ticked staff always include every column.</p><div class="checks" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 12px">${M.map(c=>`<label><input type="checkbox" value="${esc(c.k)}" data-dtc ${on.has(c.k)?'checked':''}> ${esc(c.h||c.k)}</label>`).join('')}</div>
+      <div class="modal-actions"><button class="btn" id="dtcN">None</button><button class="btn" id="dtcA">All</button><button class="btn primary" id="dtcOk">Show</button></div>`);
+    $('#dtcN').onclick=()=>$$('[data-dtc]').forEach(x=>x.checked=false); $('#dtcA').onclick=()=>$$('[data-dtc]').forEach(x=>x.checked=true);
+    $('#dtcOk').onclick=()=>{ on.clear(); $$('[data-dtc]:checked').forEach(x=>on.add(x.value)); closeModal(); S.rerender(); }; });
   const i=$(`[data-tq="${key}"]`); if(i) i.oninput=()=>{ clearTimeout(S._qt); S._qt=setTimeout(()=>{ S.tq[key]=i.value; S.rerender(); const n=$(`[data-tq="${key}"]`); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },300); };
   $$('[data-ed]').forEach(b=>b.onclick=()=>recModal(mod,(S.rec[mod]||[]).find(r=>r['Record ID']===b.dataset.ed)));
 }
@@ -2829,6 +2862,11 @@ function levelTabs(rows, cur){
   return `<div class="lvtabs">${[['','All levels'],...SLEVELS.slice(0,3)].map(([k,l])=>{ const a=k?rows.filter(r=>staffLevel(r)===k):rows, t=a.filter(isT).length;
     return `<button type="button" class="lvtab ${cur===k?'on':''}" data-lv="${k}"><b>${esc(l)}</b><span><i>${t}</i> teaching</span><span><i>${a.length-t}</i> non-teaching</span></button>`; }).join('')}</div>`;
 }
+// every column a staff record has (the template's extra columns too), for ⚙ Columns and downloads
+const ST_META=['Record ID','Updated At','Updated By','Created At','EMIS Code','School Name','Circuit','Year','_row'];
+function stAllKeys(mod, rows){ const ks=MODS[mod].fields.map(f=>f.k); rows.slice(0,400).forEach(r=>Object.keys(r).forEach(k=>{ if(!ST_META.includes(k)&&!k.startsWith('_')&&!ks.includes(k)&&r[k]!==''&&r[k]!=null) ks.push(k); })); return ks; }
+const stMore = (mod, cols, rows) => stAllKeys(mod,rows).filter(k=>!cols.some(c=>c.k===k)).map(k=>({k, small:1}));
+const stExportCols = (mod, kind, rows) => [...stAllKeys(mod,rows).map(k=>({k})),...(kind!=='dir'?[{k:'School Name'},{k:'EMIS Code'},{k:'Circuit',csv:r=>canonCircuit(r.Circuit)}]:[]),{k:'Age',csv:r=>ageOf(r['Date of Birth'])??''}];
 function vStaffList(){
   if(S.staffKind==='retire') return vRetire();
   if(S.staffKind==='officers') return vOfficers();
@@ -2873,7 +2911,7 @@ function vStaffList(){
     <div class="g2"><div class="card"><div class="card-b"><div class="cap">By rank</div><div style="margin-top:10px">${barList(rankRows)}</div></div></div>
       <div class="card"><div class="card-b"><div class="cap">By qualification</div><div style="margin-top:10px">${barList(qualRows)}</div></div></div></div>
     <div class="card accent"><div class="card-h">${secT(kind==='school'?'School staff list':kind==='shs'?'Second cycle staff list':'Directorate staff list')}<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${isSch?(can.manage(S.user.role)?`<button class="btn primary" onclick="compileTabModal('${mod}')">⬇ Compile in official template</button>`:'')+linkBtn(mod,1):''}<button class="btn" id="stX">Export List</button><button class="btn" onclick="refreshMods(['${mod}'])">Refresh</button>${m?`<button class="btn primary" onclick="recModal('${mod}')">＋ Add staff</button>`:''}</div></div>
-      ${dataTable('st'+kind,rows,cols,{edit:m, filters:`<select class="inp" id="sfC"><option value="">Teaching & non-teaching</option>${['Teaching','Non-teaching'].map(x=>`<option ${fl.cat===x?'selected':''}>${x}</option>`).join('')}</select>
+      ${dataTable('st'+kind,rows,cols,{edit:m, select:true, exportName:kind==='school'?'Staff list':kind==='shs'?'Second cycle staff':'Directorate staff', more:stMore(mod,cols,base), exportCols:stExportCols(mod,kind,base), filters:`<select class="inp" id="sfC"><option value="">Teaching & non-teaching</option>${['Teaching','Non-teaching'].map(x=>`<option ${fl.cat===x?'selected':''}>${x}</option>`).join('')}</select>
         <select class="inp" id="sfG"><option value="">Any gender</option>${['Male','Female'].map(x=>`<option ${fl.gen===x?'selected':''}>${x}</option>`).join('')}</select>`})}</div>`;
   wireStaffToggle();
   $('#sfC').onchange=e=>{ fl.cat=e.target.value; vStaffList(); };
@@ -3481,6 +3519,32 @@ async function xlRead(file){
 }
 // find the sheet + header row that best matches the tab, then turn rows into records
 function xlParse(mod, wb, forcedEmis, lenient){
+  if(mod!=='Enrolment') return xlParseCore(mod, wb, forcedEmis, lenient);
+  let P=null, err=null; try{ P=xlParseCore(mod, wb, forcedEmis, lenient); }catch(e){ err=e; }
+  if(P&&P.rows.length) return P;
+  const F=enrolFromLayout(wb, forcedEmis); if(F) return F;
+  try{ const A=retFromWorkbook(wb), emis=String(forcedEmis||String(A.C6||'').replace(/\s/g,'')), rows=[];   // Regional basic template without class labels
+    Object.entries(RET_CLS).forEach(([c,r])=>{ if(A['C'+r]!==undefined||A['D'+r]!==undefined) rows.push({Class:c,Stream:'',Boys:num(A['C'+r]),Girls:num(A['D'+r]),'EMIS Code':emis}); });
+    if(rows.length&&emis) return {sheet:'FORM', rows, errors:[], byEmis:{[emis]:rows}, raw:rows.map(r=>({line:RET_CLS[r.Class],row:r})), headers:['Class','Boys','Girls'], score:3, layout:true}; }catch(e){}
+  if(P) return P; throw err||new Error('No enrolment was found in this file.'); }
+// class rows anywhere in the file ("KG 1", "Basic 4", "JHS 2", "SHS 1", "Creche", "Nursery 1"…) with Boys/Girls (or Male/Female) beside them
+function enrolFromLayout(wb, forcedEmis){
+  const sheets=wb.SheetNames.filter((n,i)=>!(((wb.Workbook||{}).Sheets||[])[i]||{}).Hidden).sort((a,b)=>(/form/i.test(b)?1:0)-(/form/i.test(a)?1:0)); let best=null;
+  for(const n of sheets){ const a=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}); let bc=-1, gc=-1, emis=''; const got={}, lines=[];
+    a.forEach((r,ri)=>{ const t=r.map(v=>sval(v).toLowerCase());
+      const b=t.findIndex(x=>/^(boys|male|m)$/.test(x)), g=t.findIndex(x=>/^(girls|female|f)$/.test(x)); if(b>=0&&g>=0){ bc=b; gc=g; return; }
+      if(!emis){ const e=t.findIndex(x=>/emis/.test(x)&&!/mmde|district|office/.test(x)); if(e>=0){ for(let k=e+1;k<r.length;k++){ const v=sval(r[k]).replace(/\s/g,''); if(/^\d{6,}$/.test(v)){ emis=v; break; } } } }
+      for(let c=0;c<Math.min(r.length,6);c++){ const L=sval(r[c]); if(!L||L.length>24||/total|check/i.test(L)) continue; const cl=classCode(L); if(!cl) continue;
+        if(got[cl]) break; const nb=bc>c?r[bc]:r[c+1], ng=gc>c?r[gc]:r[c+2], B=num(nb), G=num(ng);
+        if((nb===''||nb==null)&&(ng===''||ng==null)) break; got[cl]={Class:cl, Stream:'', Boys:B, Girls:G}; lines.push(ri+1); break; } });
+    const rows=Object.values(got); if(rows.length&&(!best||rows.length>best.rows.length)) best={sheet:n, rows, emis, lines}; }
+  if(!best) return null;
+  const emis=String(forcedEmis||best.emis||''); const out={sheet:best.sheet, rows:[], errors:[], byEmis:{}, raw:[], headers:['Class','Boys','Girls'], score:3, layout:true};
+  if(!emis){ out.errors.push('The file has no School EMIS Code — choose the school, or type the EMIS code in the file.'); return out; }
+  if(forcedEmis&&best.emis&&best.emis!==String(forcedEmis)) out.errors.push(`Note: the EMIS code typed in the file (${best.emis}) is not this school's (${forcedEmis}). The figures are saved under ${forcedEmis}.`);
+  best.rows.forEach((r,k)=>{ r['EMIS Code']=emis; out.rows.push(r); out.raw.push({line:best.lines[k],row:r}); (out.byEmis[emis]=out.byEmis[emis]||[]).push(r); });
+  return out; }
+function xlParseCore(mod, wb, forcedEmis, lenient){
   const spec=XL[mod]; let best=null;
   wb.SheetNames.forEach(n=>{ const a=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''});
     for(let i=0;i<Math.min(15,a.length);i++){ const h=a[i].map(sval), hs=h.map(nk); const score=spec.hints.filter(x=>hs.includes(nk(x))).length;
@@ -4549,7 +4613,7 @@ function vRegReturn(){ modView(['SchoolReturn','Enrolment'],()=>{
   const all2=items.map(i=>i.r), t=k=>all2.reduce((a,r)=>a+(Number(r[k])||0),0), m=can.manage(S.user.role);
   const byC=circuits().map(c=>{ const n=basic.filter(s=>canonCircuit(s.Circuit)===c).length, d=basic.filter(s=>canonCircuit(s.Circuit)===c&&done.has(String(s['EMIS Code']))).length; return {c,n,d}; });
   $('#view').innerHTML=`<div class="page-h"><div><h2>Regional enrolment &amp; school information</h2><p>${esc(S.year||CONFIG.YEAR)} · Term ${esc(term)} · ${scopeText()}</p></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="rtLink">🔗 Copy form link for WhatsApp</button><button class="btn" onclick="refreshMods(['SchoolReturn'])">Refresh</button></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${m?`<label class="btn primary">⬆ Import schools' Regional files<input type="file" id="rtImp" accept=".xlsx,.xlsm" multiple class="hidden"></label>`:''}<button class="btn" id="rtLink">🔗 Copy form link for WhatsApp</button><button class="btn" onclick="refreshMods(['SchoolReturn'])">Refresh</button></div></div>
     <div class="banner" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">📊 Enrolment figures come from the <b>Enrolment tab</b>, so they are the same whether a school used the Regional form, the Excel template or typed them in. <label style="margin-left:auto"><input type="checkbox" id="rtEnOnly" ${inc?'checked':''}> include schools that sent enrolment only (${basic.filter(s=>!formDone.has(String(s['EMIS Code']))&&EN[String(s['EMIS Code'])]).length})</label>${m?'<button class="btn sm" id="rtSync" title="Write the Enrolment tab figures into every Regional form record">↻ Re-sync stored forms</button>':''}</div>
     ${kpis([['Schools with enrolment',`${done.size} / ${basic.length}`,'',`Regional form ${formDone.size} · enrolment only ${enOnly.length}`],['Total enrolment',t('Total Enrolment').toLocaleString()],['Boys',t('Boys').toLocaleString()],['Girls',t('Girls').toLocaleString()],['KG / Primary / JHS',`${t('KG Total').toLocaleString()} / ${t('Primary Total').toLocaleString()} / ${t('JHS Total').toLocaleString()}`],['Permanent classrooms',t('Permanent Classrooms').toLocaleString()]])}
     <div class="card accent" style="margin-bottom:18px"><div class="card-h">${secT('Send to the Region','Built from the schools\' answers, in the Region\'s own format')}</div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -4565,6 +4629,7 @@ function vRegReturn(){ modView(['SchoolReturn','Enrolment'],()=>{
       <div class="tbl-wrap"><table class="t"><thead><tr><th>School</th><th>Circuit</th><th>Level</th><th>Phone</th></tr></thead><tbody>${missing.sort((a,b)=>canonCircuit(a.Circuit).localeCompare(canonCircuit(b.Circuit))).map(s=>`<tr><td><b>${esc(s['School Name'])}</b><div class="small muted">${esc(s['EMIS Code'])}</div></td><td>${esc(canonCircuit(s.Circuit))}</td><td class="small">${esc(s.Level||'')}</td><td class="small">${esc(s.Phone||'')}</td></tr>`).join('')}</tbody></table></div></div>`:''}`;
   wireTable('rtr','');
   $('#rtEnOnly').onchange=e=>{ S.retEnOnly=e.target.checked; vRegReturn(); };
+  if($('#rtImp')) $('#rtImp').onchange=e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) retImportModal(fs); };
   if($('#rtSync')) $('#rtSync').onclick=async()=>{ const b=$('#rtSync'); b.disabled=true; b.innerHTML='<span class="spin"></span> Syncing…'; try{ const r=await api('syncReturnsEnrol'); toast(`${r.updated} Regional form record(s) updated from the Enrolment tab.`); refreshMods(['SchoolReturn']); }catch(e){ toast(e.message,true); b.disabled=false; b.textContent='↻ Re-sync stored forms'; } };
   const link=`${baseUrl()}?return=1`;
   $('#rtLink').onclick=()=>copyText(`*Enrolment & School Information (Regional) — Term ${term}*\nHead teachers: fill your school's form here. Enter your EMIS code and the school phone number, answer each step, review and submit. You get a receipt and a copy of your filled form.\n${link}`,'Form link copied — paste it into WhatsApp.');
@@ -4581,6 +4646,24 @@ function vRegReturn(){ modView(['SchoolReturn','Enrolment'],()=>{
   $$('[data-rtd]').forEach(b=>b.onclick=()=>{ openModal(`<h3>Delete this school's return?</h3><p class="muted">The school can submit again afterwards. Its Enrolment tab is not changed.</p><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" id="rtdy">Delete</button></div>`);
     $('#rtdy').onclick=async()=>{ try{ await api('recDelete',{module:'SchoolReturn',id:b.dataset.rtd}); closeModal(); await recLoad('SchoolReturn',true); vRegReturn(); toast('Deleted.'); }catch(e){ toast(e.message,true); } }; });
 }); }
+// EMIS Office: files heads sent on WhatsApp etc. Each file is read, matched to its school by the EMIS code typed in it, and submitted for that school
+async function retImportModal(files){
+  openModal(`<h3>Import schools' Regional files</h3><p class="muted small">Each file is matched to its school by the EMIS code typed in it (FORM ▸ C6), then submitted for that school — as if the head had submitted it. The Enrolment tab is updated too. A school that already submitted is updated.</p>
+    <div class="tbl-wrap" style="max-height:52vh;overflow:auto"><table class="t sm"><thead><tr><th>File</th><th>School</th><th>Result</th></tr></thead><tbody>${files.map((f,i)=>`<tr><td class="small">${esc(f.name)}</td><td id="ri${i}s" class="small">…</td><td id="ri${i}" class="small"><span class="spin"></span></td></tr>`).join('')}</tbody></table></div>
+    <div class="modal-actions"><button class="btn primary" id="riDone" disabled>Working…</button></div>`); $('#modalCard').classList.add('wide');
+  let ok=0;
+  for(let i=0;i<files.length;i++){ const f=files[i], cs=$('#ri'+i+'s'), cr=$('#ri'+i);
+    try{ const A=retFromWorkbook(await xlRead(f)), fe=String(A.C6||'').replace(/\s/g,''); if(!fe) throw new Error('No School EMIS Code typed in the file (FORM ▸ C6). Use ✏ Correct for the school and upload it there.');
+      const sch=S.data.schools.find(x=>String(x['EMIS Code']).trim()===fe); if(!sch) throw new Error(`EMIS code ${fe} is not in the school list. Check the code, or use ✏ Correct for the right school and upload the file there.`);
+      cs.innerHTML=`<b>${esc(sch['School Name'])}</b><br>${esc(fe)}`;
+      const d=await api('returnStaffStart',{emis:fe}); if(!A.C7) A.C7=(d.answers&&d.answers.C7)||levelToTpl(sch.Level);
+      const P=Object.assign({}, d.profile||{}); PROFILE_KEYS_FE.forEach(k=>{ if(P[k]==null||P[k]==='') P[k]=(d.school||{})[k]||''; });
+      const ans={}; Object.keys(A).forEach(k=>{ if(/^[A-K]\d+$/.test(k)) ans[k]=String(A[k]??'').trim(); });
+      const r=await api('returnSubmit',{ticket:d.ticket, answers:ans, profile:P, name:(S.user.name||'')+' (EMIS Office, from '+f.name.slice(0,40)+')'});
+      cr.innerHTML=`<span style="color:var(--green)">✓ Submitted${d.submitted?' (updated)':''}</span> · ${esc((r.receipt||{})['Receipt No']||'')}${r.enrolmentRows?` · ${r.enrolmentRows} class(es) to Enrolment`:''}`; ok++; }
+    catch(e){ cr.innerHTML=`<span style="color:var(--red)">✗ ${esc(e.message)}</span>`; if(cs.textContent==='…') cs.textContent='—'; } }
+  const b=$('#riDone'); b.disabled=false; b.textContent='Done'; b.onclick=()=>{ closeModal(); refreshMods(['SchoolReturn','Enrolment']); };
+  toast(`${ok} of ${files.length} file(s) imported.`); }
 // school's own tab
 function vMyReturn(){
   const v=$('#view'); v.innerHTML='<div class="loading"><span class="spin"></span></div>';
@@ -4922,7 +5005,7 @@ function vRegister(mod, by){ modView([mod],()=>{
       <div class="card accent"><div class="card-h"><h3>By circuit</h3></div><div class="tbl-wrap"><table class="t"><thead><tr><th>Circuit</th><th class="num">Boys</th><th class="num">Girls</th><th class="num">Total</th><th class="num">Schools reported</th></tr></thead><tbody>
         ${byC.map(x=>`<tr><td><b>${esc(x.c)}</b></td><td class="num">${x.b}</td><td class="num">${x.g}</td><td class="num"><b>${x.t}</b></td><td class="num">${x.s}/${x.n}</td></tr>`).join('')}</tbody></table></div></div>
     </div>
-    <div class="card accent"><div class="card-h">${secT(FORMS[mod])}<div style="margin-left:auto"><button class="btn" id="rgX">Export List</button></div></div>${dataTable('rg'+mod,rows,cols,{edit:m})}</div>`;
+    <div class="card accent"><div class="card-h">${secT(FORMS[mod])}<div style="margin-left:auto"><button class="btn" id="rgX">Export List</button></div></div>${dataTable('rg'+mod,rows,cols,{edit:m, select:true, exportName:FORMS[mod], more:M.fields.filter(f=>!cols.some(c=>c.k===f.k)).map(f=>({k:f.k,small:1})), exportCols:[...M.fields.map(f=>({k:f.k})),{k:'School Name'},{k:'EMIS Code'},{k:'Circuit',csv:r=>canonCircuit(r.Circuit)}]})}</div>`;
   wireTable('rg'+mod,mod);
   $('#rgX').onclick=()=>exportRows(S['_t_rg'+mod],[{k:'EMIS Code'},{k:'School Name'},{k:'Circuit',csv:r=>canonCircuit(r.Circuit)},...M.fields.map(f=>({k:f.k}))],`AAN_${mod}.csv`);
 }); }
@@ -4946,7 +5029,7 @@ function vStaffIssues(){ modView(['StaffIssues'],()=>{
     <div class="card" style="margin-bottom:18px"><div class="card-h"><h3>By circuit</h3></div><div class="tbl-wrap"><table class="t"><thead><tr><th>Circuit</th><th class="num">Staff with issues</th><th class="num">Unresolved</th><th class="num">Schools reported</th></tr></thead><tbody>
       ${byC.map(x=>`<tr><td><b>${esc(x.c)}</b></td><td class="num">${x.t}</td><td class="num">${x.u}</td><td class="num">${x.s}/${sc.active.filter(s=>canonCircuit(s.Circuit)===x.c).length}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="card accent"><div class="card-h">${secT('Staff with issues')}<div style="margin-left:auto"><button class="btn" id="siX">Export List</button></div></div>
-      ${dataTable('si',rows,cols,{edit:m, filters:`<select class="inp" id="siI"><option value="">All issues</option>${SI_ISSUES.map(([k])=>`<option ${fl.issue===k?'selected':''}>${esc(k)}</option>`).join('')}</select><select class="inp" id="siS"><option value="">Resolved & unresolved</option>${['Unresolved','Resolved'].map(x=>`<option ${fl.st===x?'selected':''}>${x}</option>`).join('')}</select>`})}</div>`;
+      ${dataTable('si',rows,cols,{edit:m, select:true, exportName:'Staff issues', more:MODS.StaffIssues.fields.filter(f=>!cols.some(c=>c.k===f.k)).map(f=>({k:f.k,small:1})), exportCols:[...MODS.StaffIssues.fields.map(f=>({k:f.k})),{k:'School Name'},{k:'EMIS Code'},{k:'Circuit',csv:r=>canonCircuit(r.Circuit)}], filters:`<select class="inp" id="siI"><option value="">All issues</option>${SI_ISSUES.map(([k])=>`<option ${fl.issue===k?'selected':''}>${esc(k)}</option>`).join('')}</select><select class="inp" id="siS"><option value="">Resolved & unresolved</option>${['Unresolved','Resolved'].map(x=>`<option ${fl.st===x?'selected':''}>${x}</option>`).join('')}</select>`})}</div>`;
   wireTable('si','StaffIssues');
   $('#siI').onchange=e=>{ fl.issue=e.target.value; vStaffIssues(); }; $('#siS').onchange=e=>{ fl.st=e.target.value; vStaffIssues(); };
   $$('[data-sif]').forEach(a=>a.onclick=e=>{ e.preventDefault(); fl.issue=a.dataset.sif; vStaffIssues(); });
