@@ -4803,6 +4803,7 @@ const fileSafe = s => String(s).replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'
 async function logExport(what, to, schools, rows){ try{ await api('logExport',{what, to, schools, rows}); }catch(e){} }
 // ---- compile a data tab ----
 async function compileTabModal(mod){
+  if(mod==='StaffIssues') return siSendModal();
   const label=FORMS[mod]||MODS[mod].label;
   openModal(`<h3>Compile ${esc(label)}</h3><p class="muted small">Every school's records in one Excel file${XL[mod]?' — in the official template attached under Tasks ▸ Official Excel templates (or a plain sheet if none is attached)':''}.</p>
     ${compileFilterHTML({own:mod==='SchoolStaff'?'Public':'', lev:mod==='SHSStaff'?'SHS':'basic'})}<div id="cfOut" class="small" style="margin-top:10px"></div><div class="err" id="cfErr"></div>
@@ -5045,7 +5046,7 @@ function vStaffIssues(){ modView(['StaffIssues'],()=>{
       <div style="display:flex;gap:8px;flex-wrap:wrap">${linkBtn('StaffIssues')}<button class="btn" onclick="refreshMods(['StaffIssues'])">Refresh</button>${m?`<button class="btn primary" onclick="recModal('StaffIssues')">＋ Add</button>`:''}</div></div>
     ${kpis([['Staff with issues',all.length],['Unresolved',U,U?'var(--amber)':''],['Resolved',all.length-U],['Schools that reported',`${rep}/${sc.active.length}`,rep<sc.active.length?'var(--amber)':'']])}
     <div class="card accent" style="margin-bottom:18px"><div class="card-h">${secT('Send to the Region','The Region\'s template filled: DISTRICT DETAILS (counts) and STAFF DETAILS (one row per staff)')}</div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn primary" id="siDl" ${all.length?'':'disabled'}>⬇ Region's template — filled</button><span class="small muted">Counts are worked out from the staff listed below (all issues of the year, resolved or not). Schools not yet reported count as zero — use 📣 to remind them.</span></div></div>
+      <button class="btn primary" id="siDl">⬇ Region's template — filled (both sheets)</button><span class="small muted">Counts are worked out from the staff listed below (all issues of the year, resolved or not). Schools not yet reported count as zero — use 📣 to remind them.</span></div></div>
     <div class="card accent" style="margin-bottom:18px"><div class="card-h"><h3>Summary (as in DISTRICT DETAILS)</h3></div><div class="tbl-wrap"><table class="t"><thead><tr><th rowspan="2">Issue</th><th colspan="2" class="num">Teaching</th><th colspan="2" class="num">Non-teaching</th><th rowspan="2" class="num">Total</th><th rowspan="2" class="num">Unresolved</th></tr><tr><th class="num">M</th><th class="num">F</th><th class="num">M</th><th class="num">F</th></tr></thead><tbody>
       ${M2.map(r=>`<tr><td><a href="#" data-sif="${esc(r.k)}"><b>${esc(r.k)}</b></a></td><td class="num">${r.tm}</td><td class="num">${r.tf}</td><td class="num">${r.nm}</td><td class="num">${r.nf}</td><td class="num"><b>${r.t}</b></td><td class="num">${r.u||''}</td></tr>`).join('')}
       <tr style="background:#faf8f3;font-weight:700"><td>Total</td>${['tm','tf','nm','nf','t','u'].map(k=>`<td class="num">${M2.reduce((a,r)=>a+r[k],0)}</td>`).join('')}</tr></tbody></table></div></div>
@@ -5057,7 +5058,7 @@ function vStaffIssues(){ modView(['StaffIssues'],()=>{
   $('#siI').onchange=e=>{ fl.issue=e.target.value; vStaffIssues(); }; $('#siS').onchange=e=>{ fl.st=e.target.value; vStaffIssues(); };
   $$('[data-sif]').forEach(a=>a.onclick=e=>{ e.preventDefault(); fl.issue=a.dataset.sif; vStaffIssues(); });
   $('#siX').onclick=()=>exportRows(S._t_si,[{k:'EMIS Code'},{k:'School Name'},{k:'Circuit',csv:r=>canonCircuit(r.Circuit)},...MODS.StaffIssues.fields.map(f=>({k:f.k}))],'AAN_staff_issues.csv');
-  $('#siDl').onclick=()=>siDownload(all).catch(e=>toast(e.message,true));
+  $('#siDl').onclick=()=>siSendModal();
 }); }
 // fill the Region's template (keeps its look): DISTRICT DETAILS row 7 + STAFF DETAILS from row 16
 async function siDownload(rows, mx, nSchools){
@@ -5082,6 +5083,26 @@ async function siDownload(rows, mx, nSchools){
   let w=wbx; if(/<calcPr\b/.test(w)) w=w.replace(/<calcPr\b([^>]*?)\s*(\/?)>/,(m,at,sl)=>`<calcPr${at.replace(/\s*fullCalcOnLoad="[^"]*"/,'')} fullCalcOnLoad="1"${sl}>`); else w=w.replace(/(<\/sheets>)/,'$1<calcPr fullCalcOnLoad="1"/>'); zip.file('xl/workbook.xml',w);
   saveBlob(await zip.generateAsync({type:'blob',mimeType:XL_MIME}), `STAFF_ISSUES_${String(dist).replace(/\W+/g,'_')}_${S.year||CONFIG.YEAR}_${todayStr()}.xlsx`.replace(/\//g,'-'));
   logExport('Staff issues','Region',nSchools||new Set(rows.map(r=>r['EMIS Code'])).size,rows.length); }
+// choose where the figures come from: the Staff issues tab (names + counts) and/or requests built from the one-row template (counts)
+async function siSendModal(){
+  openModal(`<h3>Staff issues → Region's template</h3><div id="ssw"><div class="loading"><span class="spin"></span></div></div>`);
+  let tab=[]; try{ await recLoad('StaffIssues'); tab=scopedRecs('StaffIssues'); }catch(e){}
+  const reqs=[]; for(const t of S.data.tasks.filter(x=>taskKind(x)==='form:template')){ try{ const sp=await tplSpec(t['Task ID']); if(!siColsOf(sp)) continue;
+      const R=await api('tplResponses',{taskId:t['Task ID']}); const set=new Set(scoped().schools.map(x=>String(x['EMIS Code']))); const items=R.filter(r=>set.has(String(r['EMIS Code']).trim())).map(r=>{ let A={}; try{ A=JSON.parse(r.Answers||'{}'); }catch(e){} return {school:S.data.schools.find(x=>String(x['EMIS Code']).trim()===String(r['EMIS Code']).trim())||{'EMIS Code':r['EMIS Code'],'School Name':r['School Name'],Circuit:r.Circuit},A}; });
+      reqs.push({t,sp,items}); }catch(e){} }
+  const tabSch=new Set(tab.map(r=>String(r['EMIS Code'])));
+  $('#ssw').innerHTML=`<p class="muted small">The Region's file has two sheets: <b>DISTRICT DETAILS</b> (numbers: teaching / non-teaching × male / female for each issue) and <b>STAFF DETAILS</b> (one row per staff member, with name, Staff ID, rank…). Choose where the figures come from.</p>
+    <label class="checks" style="display:block;margin:8px 0"><input type="checkbox" id="ssTab" ${tab.length?'checked':''} ${tab.length?'':'disabled'}> <b>Staff issues tab</b> — ${tab.length} staff from ${tabSch.size} school(s) <span class="muted small">(fills both sheets)</span></label>
+    ${reqs.map((q,i)=>`<label class="checks" style="display:block;margin:8px 0"><input type="checkbox" data-ssr="${i}" ${q.items.length&&!tab.length?'checked':''} ${q.items.length?'':'disabled'}> <b>Request “${esc(q.t.Title)}”</b> — ${q.items.length} school(s) answered <span class="muted small">(numbers only → DISTRICT DETAILS)</span></label>`).join('')||'<p class="small muted">No request built from the one-row staff-issues template.</p>'}
+    <p class="small muted">A school counted in both the tab and a request is taken from the <b>tab</b> only, so nobody is counted twice.</p>
+    <div class="err" id="ssErr"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="ssGo">⬇ Download filled template</button></div>`;
+  $('#ssGo').onclick=async()=>{ const b=$('#ssGo'); $('#ssErr').textContent=''; const useTab=$('#ssTab').checked, pick=$$('[data-ssr]:checked').map(x=>reqs[+x.dataset.ssr]);
+    if(!useTab&&!pick.length){ $('#ssErr').textContent='Tick at least one source.'; return; } b.disabled=true; b.innerHTML='<span class="spin"></span> Building…';
+    try{ const rows=useTab?tab:[], mx=siMatrix(rows), seen=new Set(useTab?[...tabSch]:[]);
+      pick.forEach(q=>{ const cols=siColsOf(q.sp); q.items.forEach(it=>{ const e=String(it.school['EMIS Code']); if(seen.has(e)) return; seen.add(e);
+        cols.forEach(c=>{ const n=Number(String(it.A[c.ref]??'').trim())||0; mx[c.iss][c.k]+=n; mx[c.iss].t+=n; }); }); });
+      await siDownload(rows, mx, seen.size); closeModal(); toast(`Downloaded: DISTRICT DETAILS from ${seen.size} school(s)${rows.length?`, STAFF DETAILS with ${rows.length} staff`:''}.`); }
+    catch(e){ $('#ssErr').textContent=e.message; b.disabled=false; b.textContent='⬇ Download filled template'; } }; }
 // one-row staff-issues template ("Passed away · Teaching · Male" …): add up the schools' answers → the Region's template
 function siColsOf(spec){ const out=[]; (spec.inputs||[]).forEach(it=>{ const p=String(it.label||'').split('·').map(x=>x.trim()); if(p.length<3) return;
     const iss=SI_ISSUES.findIndex(x=>nk(x[0])===nk(p[0])||x[2].test(p[0])), cat=/non/i.test(p[1])?'n':/teach/i.test(p[1])?'t':'', g=/female/i.test(p[2])?'f':/male/i.test(p[2])?'m':'';
